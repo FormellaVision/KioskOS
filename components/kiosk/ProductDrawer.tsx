@@ -2,53 +2,67 @@
 
 import { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
-import { Product } from '@/lib/kiosk-types';
+import { Product, Category } from '@/lib/supabase/types';
 
 interface ProductDrawerProps {
   open: boolean;
   product: Product | null;
-  categories: string[];
+  categories: Category[];
   onClose: () => void;
-  onSave: (data: Omit<Product, 'id'>) => void;
+  onSave: (data: Omit<Product, 'id' | 'store_id' | 'created_at' | 'updated_at'>) => void;
   onDelete?: () => void;
 }
 
-const emptyForm = {
-  name: '',
-  sku: '',
-  price: '',
-  salePrice: '',
-  stockCount: '',
-  category: 'Getränke',
-  supplier: '',
-  available: true,
-};
+interface FormState {
+  name: string;
+  ean: string;
+  price: string;
+  salePrice: string;
+  stockCount: string;
+  category_id: string;
+  supplier_name: string;
+  is_available: boolean;
+}
 
 export default function ProductDrawer({ open, product, categories, onClose, onSave, onDelete }: ProductDrawerProps) {
-  const [form, setForm] = useState(emptyForm);
+  const firstCategoryId = categories[0]?.id ?? '';
+
+  const emptyForm: FormState = {
+    name: '',
+    ean: '',
+    price: '',
+    salePrice: '',
+    stockCount: '',
+    category_id: firstCategoryId,
+    supplier_name: '',
+    is_available: true,
+  };
+
+  const [form, setForm] = useState<FormState>(emptyForm);
 
   useEffect(() => {
     if (open) {
       if (product) {
         setForm({
           name: product.name,
-          sku: product.sku,
+          ean: product.ean ?? '',
           price: product.price.toString(),
           salePrice: product.sale_price != null ? product.sale_price.toString() : '',
           stockCount: product.stock_count != null ? product.stock_count.toString() : '',
-          category: product.category,
-          supplier: product.supplier ?? '',
-          available: product.available,
+          category_id: product.category_id ?? firstCategoryId,
+          supplier_name: product.supplier_name ?? '',
+          is_available: product.is_available,
         });
       } else {
-        setForm({ ...emptyForm, category: categories.filter((c) => c !== 'Alle')[0] ?? 'Getränke' });
+        setForm({ ...emptyForm, category_id: firstCategoryId });
       }
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
     return () => { document.body.style.overflow = ''; };
-  }, [open, product, categories]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, product, firstCategoryId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -58,14 +72,17 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
     if (!form.name.trim() || !form.price) return;
     onSave({
       name: form.name.trim(),
-      sku: form.sku.trim(),
+      description: null,
+      ean: form.ean.trim() || null,
       price: parseFloat(form.price) || 0,
       sale_price: form.salePrice ? parseFloat(form.salePrice) : null,
       stock_count: form.stockCount !== '' ? parseInt(form.stockCount) : null,
-      category: form.category,
-      supplier: form.supplier.trim() || undefined,
-      available: form.available,
-      image: null,
+      category_id: form.category_id || null,
+      supplier_name: form.supplier_name.trim() || null,
+      supplier_contact: null,
+      is_available: form.is_available,
+      is_archived: false,
+      image_url: null,
     });
   };
 
@@ -114,13 +131,13 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
 
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
-              SKU / Artikelnummer
+              EAN / Barcode
             </label>
             <input
-              name="sku"
-              value={form.sku}
+              name="ean"
+              value={form.ean}
               onChange={handleChange}
-              placeholder="z. B. RB-250"
+              placeholder="z. B. 9002490100070"
               className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"
             />
           </div>
@@ -175,16 +192,16 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
 
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
-              Kategorie *
+              Kategorie
             </label>
             <select
-              name="category"
-              value={form.category}
+              name="category_id"
+              value={form.category_id}
               onChange={handleChange}
               className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:border-red-500 transition-colors appearance-none"
             >
-              {categories.filter((c) => c !== 'Alle').map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
               ))}
             </select>
           </div>
@@ -194,8 +211,8 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
               Lieferant (optional)
             </label>
             <input
-              name="supplier"
-              value={form.supplier}
+              name="supplier_name"
+              value={form.supplier_name}
               onChange={handleChange}
               placeholder="z. B. Metro Cash & Carry"
               className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm focus:outline-none focus:border-red-500 transition-colors"
@@ -208,15 +225,15 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
               <p className="text-gray-500 text-xs">Produkt im Shop anzeigen</p>
             </div>
             <button
-              onClick={() => setForm((prev) => ({ ...prev, available: !prev.available }))}
+              onClick={() => setForm((prev) => ({ ...prev, is_available: !prev.is_available }))}
               className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                form.available ? 'bg-green-500' : 'bg-gray-300'
+                form.is_available ? 'bg-green-500' : 'bg-gray-300'
               }`}
               aria-label="Verfügbarkeit umschalten"
             >
               <span
                 className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                  form.available ? 'translate-x-6' : 'translate-x-0'
+                  form.is_available ? 'translate-x-6' : 'translate-x-0'
                 }`}
               />
             </button>
@@ -245,7 +262,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
                 className="flex items-center gap-2 text-red-500 hover:text-red-700 text-sm font-medium transition-colors py-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Produkt löschen
+                Produkt archivieren
               </button>
             </div>
           )}

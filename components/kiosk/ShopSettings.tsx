@@ -2,46 +2,40 @@
 
 import { useState } from 'react';
 import { LayoutList, LayoutGrid, Trash2, Plus, Store, MapPin, Mail, Phone } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ProductViewMode } from './KioskApp';
-import { PRODUCTS } from '@/lib/kiosk-data';
+import { Category } from '@/lib/supabase/types';
 
 interface ShopSettingsProps {
-  categories: string[];
-  onCategoriesChange: (cats: string[]) => void;
+  categories: Category[];
+  onAddCategory: (name: string) => Promise<Category>;
   viewMode: ProductViewMode;
   onViewModeChange: (mode: ProductViewMode) => void;
 }
 
 export default function ShopSettings({
   categories,
-  onCategoriesChange,
+  onAddCategory,
   viewMode,
-  onViewModeChange,
+  onViewModeChange
 }: ShopSettingsProps) {
   const [newCat, setNewCat] = useState('');
-  const [products] = useState(PRODUCTS);
 
-  const getProductCount = (cat: string) =>
-    products.filter((p) => p.category === cat).length;
-
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     const name = newCat.trim();
-    if (!name || categories.includes(name)) return;
-    onCategoriesChange([...categories, name]);
-    setNewCat('');
-  };
-
-  const handleDeleteCategory = (cat: string) => {
-    if (
-      window.confirm(
-        `Kategorie "${cat}" löschen? Produkte bleiben erhalten.`
-      )
-    ) {
-      onCategoriesChange(categories.filter((c) => c !== cat));
+    if (!name) return;
+    if (categories.some((c) => c.name === name)) {
+      toast.error('Kategorie existiert bereits');
+      return;
+    }
+    try {
+      await onAddCategory(name);
+      setNewCat('');
+      toast.success(`Kategorie "${name}" hinzugefügt`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Fehler beim Hinzufügen');
     }
   };
-
-  const displayCats = categories.filter((c) => c !== 'Alle');
 
   return (
     <div className="space-y-6 pb-8 max-w-3xl">
@@ -98,36 +92,28 @@ export default function ShopSettings({
             </p>
           </div>
 
-          {displayCats.length === 0 ? (
+          {categories.length === 0 ? (
             <div className="px-5 py-8 text-center text-gray-400 text-sm">
               Keine Kategorien vorhanden
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {displayCats.map((cat) => {
-                const count = getProductCount(cat);
-                return (
-                  <div key={cat} className="flex items-center justify-between px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                      <span className="text-black text-sm font-medium">{cat}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-gray-400 text-xs">
-                        {count} {count === 1 ? 'Produkt' : 'Produkte'}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteCategory(cat)}
-                        aria-label={`${cat} löschen`}
-                        title="Kategorie löschen"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+              {categories.map((cat) => (
+                <div key={cat.id} className="flex items-center justify-between px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                    <span className="text-black text-sm font-medium">{cat.name}</span>
                   </div>
-                );
-              })}
+                  <div className="flex items-center gap-4">
+                    <button
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Kategorie löschen (Phase 2)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -142,7 +128,7 @@ export default function ShopSettings({
               />
               <button
                 onClick={handleAddCategory}
-                disabled={!newCat.trim() || categories.includes(newCat.trim())}
+                disabled={!newCat.trim()}
                 className="flex items-center gap-1.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors"
               >
                 <Plus className="w-4 h-4" />

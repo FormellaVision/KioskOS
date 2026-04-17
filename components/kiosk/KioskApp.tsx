@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { NavPage } from '@/lib/kiosk-types';
-import { CATEGORIES } from '@/lib/kiosk-data';
 import BottomNav from './BottomNav';
 import Sidebar from './Sidebar';
 import Dashboard from './Dashboard';
@@ -10,13 +9,14 @@ import Products from './Products';
 import Orders from './Orders';
 import Customers from './Customers';
 import ShopSettings from './ShopSettings';
+import { useProducts } from '@/hooks/use-products';
 
 export type ProductViewMode = 'table' | 'grid';
 
 export default function KioskApp() {
   const [activePage, setActivePage] = useState<NavPage>('dashboard');
-  const [categories, setCategories] = useState<string[]>(CATEGORIES);
   const [viewMode, setViewMode] = useState<ProductViewMode>('table');
+  const { categories, addCategory } = useProducts();
 
   const handleNavigate = (page: NavPage) => setActivePage(page);
 
@@ -32,7 +32,6 @@ export default function KioskApp() {
           {activePage === 'products' && (
             <Products
               categories={categories}
-              onCategoriesChange={setCategories}
               viewMode={viewMode}
             />
           )}
@@ -41,7 +40,7 @@ export default function KioskApp() {
           {activePage === 'settings' && (
             <ShopSettings
               categories={categories}
-              onCategoriesChange={setCategories}
+              onAddCategory={addCategory}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
