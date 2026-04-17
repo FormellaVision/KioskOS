@@ -4,19 +4,22 @@ import { useState } from 'react';
 import { LayoutList, LayoutGrid, Trash2, Plus, Store, MapPin, Mail, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProductViewMode } from './KioskApp';
-import { useProducts } from '@/hooks/use-products';
+import { Category } from '@/lib/supabase/types';
 
 interface ShopSettingsProps {
+  categories: Category[];
+  onAddCategory: (name: string) => Promise<Category>;
   viewMode: ProductViewMode;
   onViewModeChange: (mode: ProductViewMode) => void;
 }
 
-export default function ShopSettings({ viewMode, onViewModeChange }: ShopSettingsProps) {
-  const { categories, products, addCategory, archiveProduct } = useProducts();
+export default function ShopSettings({
+  categories,
+  onAddCategory,
+  viewMode,
+  onViewModeChange
+}: ShopSettingsProps) {
   const [newCat, setNewCat] = useState('');
-
-  const getProductCount = (categoryId: string) =>
-    products.filter((p) => p.category_id === categoryId).length;
 
   const handleAddCategory = async () => {
     const name = newCat.trim();
@@ -26,29 +29,11 @@ export default function ShopSettings({ viewMode, onViewModeChange }: ShopSetting
       return;
     }
     try {
-      await addCategory(name);
+      await onAddCategory(name);
       setNewCat('');
       toast.success(`Kategorie "${name}" hinzugefügt`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Fehler beim Hinzufügen');
-    }
-  };
-
-  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
-    const count = getProductCount(categoryId);
-    const confirmMsg = count > 0
-      ? `Kategorie "${categoryName}" löschen? ${count} Produkt(e) verlieren ihre Kategorie.`
-      : `Kategorie "${categoryName}" löschen?`;
-
-    if (!window.confirm(confirmMsg)) return;
-
-    // Archive all products in this category
-    const productsInCat = products.filter((p) => p.category_id === categoryId);
-    try {
-      await Promise.all(productsInCat.map((p) => archiveProduct(p.id)));
-      toast.success(`Kategorie "${categoryName}" und ${productsInCat.length} Produkte archiviert`);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Fehler beim Löschen');
     }
   };
 
@@ -113,30 +98,22 @@ export default function ShopSettings({ viewMode, onViewModeChange }: ShopSetting
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {categories.map((cat) => {
-                const count = getProductCount(cat.id);
-                return (
-                  <div key={cat.id} className="flex items-center justify-between px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
-                      <span className="text-black text-sm font-medium">{cat.name}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <span className="text-gray-400 text-xs">
-                        {count} {count === 1 ? 'Produkt' : 'Produkte'}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                        aria-label={`${cat.name} löschen`}
-                        title="Kategorie löschen"
-                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+              {categories.map((cat) => (
+                <div key={cat.id} className="flex items-center justify-between px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-red-400 flex-shrink-0" />
+                    <span className="text-black text-sm font-medium">{cat.name}</span>
                   </div>
-                );
-              })}
+                  <div className="flex items-center gap-4">
+                    <button
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                      title="Kategorie löschen (Phase 2)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

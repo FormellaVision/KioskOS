@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Search, Plus, Pencil, Package, ChevronUp, ChevronDown } from 'lucide-react';
-import { Product } from '@/lib/supabase/types';
+import { Product, Category } from '@/lib/supabase/types';
 import { useProducts } from '@/hooks/use-products';
 import ProductDrawer from './ProductDrawer';
 import type { ProductViewMode } from './KioskApp';
@@ -12,15 +12,13 @@ type SortKey = 'name' | 'price' | 'stock_count' | 'is_available';
 type SortDir = 'asc' | 'desc';
 
 interface ProductsProps {
-  categories: string[]; // kept for KioskApp compatibility (ignored — we use Supabase categories)
-  onCategoriesChange: (cats: string[]) => void;
+  categories: Category[];
   viewMode: ProductViewMode;
 }
 
-export default function Products({ viewMode }: ProductsProps) {
+export default function Products({ categories: categoriesFromProps, viewMode }: ProductsProps) {
   const {
     products,
-    categories,
     loading,
     error,
     toggleAvailability,
@@ -115,21 +113,21 @@ export default function Products({ viewMode }: ProductsProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-zinc-400">Produkte werden geladen...</p>
+        <p className="text-gray-500 text-sm">Produkte werden geladen...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 bg-red-900/20 text-red-400 rounded-lg">
-        {error}
+      <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+        <p className="text-red-600 text-sm">Fehler: {error}</p>
       </div>
     );
   }
 
-  // Build category label map
-  const categoryMap = Object.fromEntries(categories.map(c => [c.id, c.name]));
+  // Build category label map from props
+  const categoryMap = Object.fromEntries(categoriesFromProps.map(c => [c.id, c.name]));
 
   return (
     <div className="space-y-4 pb-8">
@@ -179,7 +177,7 @@ export default function Products({ viewMode }: ProductsProps) {
         </select>
       </div>
 
-      {/* Category filter tabs */}
+      {/* Category filter tabs using props */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         <button
           onClick={() => setActiveCategoryId('all')}
@@ -191,7 +189,7 @@ export default function Products({ viewMode }: ProductsProps) {
         >
           Alle
         </button>
-        {categories.map((cat) => (
+        {categoriesFromProps.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategoryId(cat.id)}
@@ -312,7 +310,7 @@ export default function Products({ viewMode }: ProductsProps) {
       <ProductDrawer
         open={drawerOpen}
         product={editProduct}
-        categories={categories}
+        categories={categoriesFromProps}
         onClose={() => {
           setDrawerOpen(false);
           setEditProduct(null);
