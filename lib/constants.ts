@@ -1,0 +1,3 @@
+// Temporär bis Auth implementiert ist
+// Entspricht dem Seed-Store "Shisha World Hamburg" in Supabase
+export const DEMO_STORE_ID = '00000000-0000-0000-0000-000000000001'

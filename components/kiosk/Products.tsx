@@ -2,31 +2,40 @@
 
 import { useState } from 'react';
 import { Search, Plus, Pencil, Package, ChevronUp, ChevronDown } from 'lucide-react';
-import { Product } from '@/lib/kiosk-types';
-import { PRODUCTS } from '@/lib/kiosk-data';
+import { Product } from '@/lib/supabase/types';
+import { useProducts } from '@/hooks/use-products';
 import ProductDrawer from './ProductDrawer';
 import type { ProductViewMode } from './KioskApp';
+import { toast } from 'sonner';
 
-type SortKey = 'name' | 'price' | 'stock_count' | 'available';
+type SortKey = 'name' | 'price' | 'stock_count' | 'is_available';
 type SortDir = 'asc' | 'desc';
 
-let nextId = PRODUCTS.length + 1;
-
 interface ProductsProps {
-  categories: string[];
+  categories: string[]; // kept for KioskApp compatibility (ignored — we use Supabase categories)
   onCategoriesChange: (cats: string[]) => void;
   viewMode: ProductViewMode;
 }
 
-export default function Products({ categories, viewMode }: ProductsProps) {
-  const [products, setProducts] = useState<Product[]>(PRODUCTS);
+export default function Products({ viewMode }: ProductsProps) {
+  const {
+    products,
+    categories,
+    loading,
+    error,
+    toggleAvailability,
+    addProduct,
+    updateProduct,
+    archiveProduct,
+  } = useProducts();
+
   const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState('Alle');
+  const [activeCategoryId, setActiveCategoryId] = useState<string | 'all'>('all');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
-  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -39,10 +48,8 @@ export default function Products({ categories, viewMode }: ProductsProps) {
 
   const filtered = products
     .filter((p) => {
-      const matchSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.sku.toLowerCase().includes(search.toLowerCase());
-      const matchCat = activeCategory === 'Alle' || p.category === activeCategory;
+      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchCat = activeCategoryId === 'all' || p.category_id === activeCategoryId;
       return matchSearch && matchCat;
     })
     .sort((a, b) => {
@@ -51,34 +58,40 @@ export default function Products({ categories, viewMode }: ProductsProps) {
       else if (sortKey === 'price') cmp = a.price - b.price;
       else if (sortKey === 'stock_count') {
         cmp = (a.stock_count ?? Infinity) - (b.stock_count ?? Infinity);
-      } else if (sortKey === 'available') {
-        cmp = Number(b.available) - Number(a.available);
+      } else if (sortKey === 'is_available') {
+        cmp = Number(b.is_available) - Number(a.is_available);
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
 
-  const toggleAvailability = (id: number) => {
-    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, available: !p.available } : p)));
-  };
-
-  const handleSaveProduct = (data: Omit<Product, 'id'>) => {
-    if (editProduct) {
-      setProducts((prev) => prev.map((p) => (p.id === editProduct.id ? { ...p, ...data } : p)));
-    } else {
-      const id = nextId++;
-      setProducts((prev) => [{ ...data, id }, ...prev]);
-      setHighlightId(id);
-      setTimeout(() => setHighlightId(null), 2000);
-    }
-    setDrawerOpen(false);
-    setEditProduct(null);
-  };
-
-  const handleDeleteProduct = (id: number) => {
-    if (window.confirm('Produkt wirklich löschen?')) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+  const handleSaveProduct = async (data: Omit<Product, 'id' | 'store_id' | 'created_at' | 'updated_at'>) => {
+    try {
+      if (editProduct) {
+        await updateProduct(editProduct.id, data);
+        toast.success('Produkt aktualisiert');
+      } else {
+        const newProduct = await addProduct(data);
+        setHighlightId(newProduct.id);
+        setTimeout(() => setHighlightId(null), 2000);
+        toast.success('Produkt hinzugefügt');
+      }
       setDrawerOpen(false);
       setEditProduct(null);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Speichern fehlgeschlagen');
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (window.confirm('Produkt wirklich archivieren?')) {
+      try {
+        await archiveProduct(id);
+        toast.success('Produkt archiviert');
+        setDrawerOpen(false);
+        setEditProduct(null);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Archivieren fehlgeschlagen');
+      }
     }
   };
 
@@ -98,6 +111,25 @@ export default function Products({ categories, viewMode }: ProductsProps) {
       ? <ChevronUp className="w-3 h-3 text-red-500" />
       : <ChevronDown className="w-3 h-3 text-red-500" />;
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-zinc-400">Produkte werden geladen...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-900/20 text-red-400 rounded-lg">
+        {error}
+      </div>
+    );
+  }
+
+  // Build category label map
+  const categoryMap = Object.fromEntries(categories.map(c => [c.id, c.name]));
 
   return (
     <div className="space-y-4 pb-8">
@@ -121,7 +153,7 @@ export default function Products({ categories, viewMode }: ProductsProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Name oder SKU suchen..."
+            placeholder="Name suchen..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-white border border-border rounded-xl pl-10 pr-4 py-2.5 text-black placeholder-gray-400 text-sm focus:outline-none focus:border-red-500 transition-colors"
@@ -142,23 +174,34 @@ export default function Products({ categories, viewMode }: ProductsProps) {
           <option value="name-desc">Name Z–A</option>
           <option value="price-asc">Preis ↑</option>
           <option value="price-desc">Preis ↓</option>
-          <option value="available-asc">Verfügbar zuerst</option>
-          <option value="available-desc">Nicht verfügbar zuerst</option>
+          <option value="is_available-asc">Verfügbar zuerst</option>
+          <option value="is_available-desc">Nicht verfügbar zuerst</option>
         </select>
       </div>
 
+      {/* Category filter tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
+        <button
+          onClick={() => setActiveCategoryId('all')}
+          className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[34px] ${
+            activeCategoryId === 'all'
+              ? 'bg-red-500 text-white'
+              : 'bg-white text-gray-600 border border-border hover:text-black'
+          }`}
+        >
+          Alle
+        </button>
         {categories.map((cat) => (
           <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
+            key={cat.id}
+            onClick={() => setActiveCategoryId(cat.id)}
             className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[34px] ${
-              activeCategory === cat
+              activeCategoryId === cat.id
                 ? 'bg-red-500 text-white'
                 : 'bg-white text-gray-600 border border-border hover:text-black'
             }`}
           >
-            {cat}
+            {cat.name}
           </button>
         ))}
       </div>
@@ -176,8 +219,9 @@ export default function Products({ categories, viewMode }: ProductsProps) {
                 <GridCard
                   key={product.id}
                   product={product}
+                  categoryName={categoryMap[product.category_id ?? ''] ?? '—'}
                   highlight={highlightId === product.id}
-                  onToggle={() => toggleAvailability(product.id)}
+                  onToggle={() => toggleAvailability(product.id, product.is_available)}
                   onEdit={() => openEdit(product)}
                 />
               ))}
@@ -222,10 +266,10 @@ export default function Products({ categories, viewMode }: ProductsProps) {
                   </th>
                   <th
                     className="text-center px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none w-[72px]"
-                    onClick={() => handleSort('available')}
+                    onClick={() => handleSort('is_available')}
                   >
-                    <span className={`flex items-center justify-center gap-1 ${sortKey === 'available' ? 'text-red-500' : 'text-gray-500'}`}>
-                      Aktiv <SortIcon col="available" />
+                    <span className={`flex items-center justify-center gap-1 ${sortKey === 'is_available' ? 'text-red-500' : 'text-gray-500'}`}>
+                      Aktiv <SortIcon col="is_available" />
                     </span>
                   </th>
                   <th className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-[56px]"></th>
@@ -245,8 +289,9 @@ export default function Products({ categories, viewMode }: ProductsProps) {
                       key={product.id}
                       product={product}
                       index={idx + 1}
+                      categoryName={categoryMap[product.category_id ?? ''] ?? '—'}
                       highlight={highlightId === product.id}
-                      onToggle={() => toggleAvailability(product.id)}
+                      onToggle={() => toggleAvailability(product.id, product.is_available)}
                       onEdit={() => openEdit(product)}
                     />
                   ))
@@ -282,13 +327,14 @@ export default function Products({ categories, viewMode }: ProductsProps) {
 interface TableRowProps {
   product: Product;
   index: number;
+  categoryName: string;
   highlight: boolean;
   onToggle: () => void;
   onEdit: () => void;
 }
 
-function TableRow({ product, index, highlight, onToggle, onEdit }: TableRowProps) {
-  const isUnavailable = !product.available;
+function TableRow({ product, index, categoryName, highlight, onToggle, onEdit }: TableRowProps) {
+  const isUnavailable = !product.is_available;
   const stockZero = product.stock_count === 0;
 
   return (
@@ -307,11 +353,13 @@ function TableRow({ product, index, highlight, onToggle, onEdit }: TableRowProps
         <p className={`font-semibold text-sm leading-tight truncate max-w-[220px] ${isUnavailable ? 'text-gray-400' : 'text-black'}`}>
           {product.name}
         </p>
-        <p className="text-xs text-gray-400 font-mono mt-0.5">{product.sku}</p>
+        {product.ean && (
+          <p className="text-xs text-gray-400 font-mono mt-0.5">{product.ean}</p>
+        )}
       </td>
       <td className="hidden sm:table-cell px-3 py-2">
         <span className="inline-block px-2 py-0.5 bg-gray-100 rounded text-gray-600 text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap">
-          {product.category}
+          {categoryName}
         </span>
       </td>
       <td className="px-3 py-2 text-right">
@@ -342,11 +390,11 @@ function TableRow({ product, index, highlight, onToggle, onEdit }: TableRowProps
       <td className="px-3 py-2 text-center">
         <button
           onClick={onToggle}
-          aria-label={product.available ? 'Deaktivieren' : 'Aktivieren'}
+          aria-label={product.is_available ? 'Deaktivieren' : 'Aktivieren'}
           className="inline-flex items-center justify-center min-w-[44px] min-h-[44px]"
         >
-          <div className={`relative w-9 h-[18px] rounded-full transition-colors duration-200 ${product.available ? 'bg-green-500' : 'bg-gray-300'}`}>
-            <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200 ${product.available ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+          <div className={`relative w-9 h-[18px] rounded-full transition-colors duration-200 ${product.is_available ? 'bg-green-500' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full shadow transition-transform duration-200 ${product.is_available ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
           </div>
         </button>
       </td>
@@ -365,23 +413,29 @@ function TableRow({ product, index, highlight, onToggle, onEdit }: TableRowProps
 
 interface GridCardProps {
   product: Product;
+  categoryName: string;
   highlight: boolean;
   onToggle: () => void;
   onEdit: () => void;
 }
 
-function GridCard({ product, highlight, onToggle, onEdit }: GridCardProps) {
-  const isUnavailable = !product.available;
+function GridCard({ product, categoryName, highlight, onToggle, onEdit }: GridCardProps) {
+  const isUnavailable = !product.is_available;
   return (
     <div className={`bg-white rounded-xl border transition-all shadow-sm ${highlight ? 'border-red-300 ring-2 ring-red-100' : 'border-border'} ${isUnavailable ? 'opacity-70' : ''}`}>
       <div className="p-4">
         <div className="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
-          <Package className="w-8 h-8 text-gray-300" />
+          {product.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover rounded-lg" />
+          ) : (
+            <Package className="w-8 h-8 text-gray-300" />
+          )}
         </div>
         <p className={`font-bold text-sm leading-tight ${isUnavailable ? 'text-gray-400' : 'text-black'}`}>{product.name}</p>
         <div className="flex items-center justify-between mt-1">
           <span className="inline-block px-2 py-0.5 bg-gray-100 rounded text-gray-600 text-[10px] font-semibold uppercase tracking-wide">
-            {product.category}
+            {categoryName}
           </span>
           <span className={`font-mono font-bold text-sm ${isUnavailable ? 'text-gray-400' : 'text-black'}`}>
             € {product.price.toFixed(2)}
@@ -392,13 +446,13 @@ function GridCard({ product, highlight, onToggle, onEdit }: GridCardProps) {
         <button
           onClick={onToggle}
           className="flex items-center gap-2 min-h-[36px]"
-          aria-label={product.available ? 'Deaktivieren' : 'Aktivieren'}
+          aria-label={product.is_available ? 'Deaktivieren' : 'Aktivieren'}
         >
-          <div className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${product.available ? 'bg-green-500' : 'bg-gray-300'}`}>
-            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${product.available ? 'translate-x-5' : 'translate-x-0'}`} />
+          <div className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${product.is_available ? 'bg-green-500' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${product.is_available ? 'translate-x-5' : 'translate-x-0'}`} />
           </div>
-          <span className={`text-xs font-medium ${product.available ? 'text-green-600' : 'text-gray-400'}`}>
-            {product.available ? 'Aktiv' : 'Inaktiv'}
+          <span className={`text-xs font-medium ${product.is_available ? 'text-green-600' : 'text-gray-400'}`}>
+            {product.is_available ? 'Aktiv' : 'Inaktiv'}
           </span>
         </button>
         <button

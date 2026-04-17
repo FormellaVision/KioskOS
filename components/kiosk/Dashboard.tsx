@@ -1,9 +1,12 @@
 'use client';
 
-import { Plus, PackageCheck, TrendingUp, Clock, CircleAlert as AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, PackageCheck, TrendingUp, Clock } from 'lucide-react';
 import { ORDERS } from '@/lib/kiosk-data';
 import { Order } from '@/lib/kiosk-types';
 import OrderStatusBadge from './OrderStatusBadge';
+import { supabase } from '@/lib/supabase/client';
+import { DEMO_STORE_ID } from '@/lib/constants';
 
 interface DashboardProps {
   onNavigate: (page: 'products' | 'orders') => void;
@@ -12,6 +15,17 @@ interface DashboardProps {
 const recentOrders = ORDERS.slice(0, 3);
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
+  const [productCount, setProductCount] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('store_id', DEMO_STORE_ID)
+      .eq('is_archived', false)
+      .then(({ count }) => setProductCount(count ?? 0));
+  }, []);
+
   return (
     <div className="space-y-6 pb-4">
       <div>
@@ -41,8 +55,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <span className="mt-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         </div>
         <div className="bg-white rounded-xl p-4 border border-border flex flex-col items-center justify-center text-center shadow-sm">
-          <p className="text-xl font-bold text-black font-mono leading-tight">€ 124</p>
-          <p className="text-gray-600 text-xs mt-1 leading-tight">Offen</p>
+          <p className="text-xl font-bold text-black font-mono leading-tight">{productCount}</p>
+          <p className="text-gray-600 text-xs mt-1 leading-tight">Produkte</p>
         </div>
       </div>
 
