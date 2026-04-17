@@ -22,8 +22,12 @@ export function useProducts() {
         .eq('is_archived', false)
         .order('name', { ascending: true })
 
-      if (error) throw error
+      if (error) {
+        console.error('SUPABASE FETCH ERROR:', error)
+        throw error
+      }
       setProducts(data ?? [])
+
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler')
     } finally {
