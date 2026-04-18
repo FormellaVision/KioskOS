@@ -138,6 +138,100 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       </div>
 
       <DailyClosingSheet open={closingOpen} onOpenChange={setClosingOpen} />
+
+      {/* Wochenübersicht */}
+      <div className="space-y-3">
+        <p className="text-gray-600 text-xs font-semibold uppercase tracking-widest">
+          Diese Woche
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white rounded-xl p-4 border border-border shadow-sm">
+            <p className="text-gray-500 text-xs mb-1">Umsatz (7 Tage)</p>
+            {loading ? (
+              <div className="h-7 w-24 bg-gray-200 rounded animate-pulse" />
+            ) : (
+              <p className="text-xl font-bold text-black font-mono">
+                {`\u20ac ${stats.weekRevenue.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`}
+              </p>
+            )}
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-border shadow-sm">
+            <p className="text-gray-500 text-xs mb-1">Bestellungen (7 Tage)</p>
+            {loading ? (
+              <div className="h-7 w-12 bg-gray-200 rounded animate-pulse" />
+            ) : (
+              <p className="text-xl font-bold text-black font-mono">{stats.weekOrderCount}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Topprodukte */}
+      {!loading && stats.topProducts.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-gray-600 text-xs font-semibold uppercase tracking-widest">
+            Top Produkte (30 Tage)
+          </p>
+          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+            {stats.topProducts.map((p, i) => {
+              const maxSold = stats.topProducts[0].total_sold;
+              const barWidth = maxSold > 0 ? (p.total_sold / maxSold) * 100 : 0;
+              return (
+                <div key={p.product_name} className={`px-4 py-3 ${i < stats.topProducts.length - 1 ? 'border-b border-border' : ''}`}>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-gray-400 text-xs font-mono w-4 flex-shrink-0">{i + 1}</span>
+                      <span className="text-black text-sm font-medium truncate">{p.product_name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-gray-500 text-xs font-mono">{p.total_sold}&times;</span>
+                      <span className="text-black text-xs font-bold font-mono">{`\u20ac ${p.total_revenue.toFixed(2)}`}</span>
+                    </div>
+                  </div>
+                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-red-400 rounded-full transition-all duration-500"
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Umsatz nach Kategorie */}
+      {!loading && stats.revenueByCategory.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-gray-600 text-xs font-semibold uppercase tracking-widest">
+            Umsatz nach Kategorie (30 Tage)
+          </p>
+          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+            {stats.revenueByCategory.map((cat, i) => {
+              const total = stats.revenueByCategory.reduce((s, c) => s + c.revenue, 0);
+              const pct = total > 0 ? Math.round((cat.revenue / total) * 100) : 0;
+              return (
+                <div
+                  key={cat.category_name}
+                  className={`px-4 py-3 flex items-center justify-between gap-3 ${i < stats.revenueByCategory.length - 1 ? 'border-b border-border' : ''}`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="text-sm text-black font-medium truncate">{cat.category_name}</span>
+                    <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gray-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-gray-400 text-xs">{pct}%</span>
+                    <span className="text-black text-xs font-bold font-mono">{`\u20ac ${cat.revenue.toFixed(2)}`}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

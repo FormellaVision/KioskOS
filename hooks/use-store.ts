@@ -13,10 +13,26 @@ export type StoreData = {
   logo_url: string | null
 }
 
+export type StoreSettings = {
+  pickup_enabled: boolean
+  shipping_enabled: boolean
+  local_delivery_enabled: boolean
+  local_delivery_radius_km: number | null
+  local_delivery_fee: number | null
+}
+
 export function useStore() {
   const [store, setStore] = useState<StoreData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [settings, setSettings] = useState<StoreSettings>({
+    pickup_enabled: true,
+    shipping_enabled: false,
+    local_delivery_enabled: false,
+    local_delivery_radius_km: null,
+    local_delivery_fee: null,
+  })
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const fetchStore = useCallback(async () => {
     setLoading(true)
@@ -35,9 +51,27 @@ export function useStore() {
     }
   }, [])
 
+  const fetchSettings = useCallback(async () => {
+    const { data } = await supabase
+      .from('store_settings')
+      .select('pickup_enabled, shipping_enabled, local_delivery_enabled, local_delivery_radius_km, local_delivery_fee')
+      .eq('store_id', DEMO_STORE_ID)
+      .single()
+    if (data) {
+      setSettings({
+        pickup_enabled: data.pickup_enabled ?? true,
+        shipping_enabled: data.shipping_enabled ?? false,
+        local_delivery_enabled: data.local_delivery_enabled ?? false,
+        local_delivery_radius_km: data.local_delivery_radius_km ?? null,
+        local_delivery_fee: data.local_delivery_fee ?? null,
+      })
+    }
+  }, [])
+
   useEffect(() => {
     fetchStore()
-  }, [fetchStore])
+    fetchSettings()
+  }, [fetchStore, fetchSettings])
 
   const updateStore = async (updates: Partial<Omit<StoreData, 'id'>>) => {
     setSaving(true)
@@ -53,5 +87,19 @@ export function useStore() {
     }
   }
 
-  return { store, loading, saving, updateStore, refetch: fetchStore }
+  const updateSettings = async (updates: Partial<StoreSettings>) => {
+    setSavingSettings(true)
+    try {
+      const { error } = await supabase
+        .from('store_settings')
+        .update(updates)
+        .eq('store_id', DEMO_STORE_ID)
+      if (error) throw error
+      setSettings(prev => ({ ...prev, ...updates }))
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  return { store, loading, saving, updateStore, settings, savingSettings, updateSettings, refetch: fetchStore }
 }

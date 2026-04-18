@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Search, Users, Mail, ShoppingBag, ChevronRight, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Users, Mail, ShoppingBag, ChevronRight, AlertCircle, X } from 'lucide-react';
 import { useCustomers, CustomerWithStats } from '@/hooks/use-customers';
 
 export default function Customers() {
   const { customers, loading, error } = useCustomers();
   const [search, setSearch] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithStats | null>(null);
 
   if (loading) {
     return (
@@ -70,15 +71,30 @@ export default function Customers() {
       ) : (
         <div className="space-y-2">
           {filtered.map((customer) => (
-            <CustomerRow key={customer.id} customer={customer} />
+            <CustomerRow
+              key={customer.id}
+              customer={customer}
+              onSelect={setSelectedCustomer}
+            />
           ))}
         </div>
       )}
+
+      <CustomerDetailSheet
+        customer={selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+      />
     </div>
   );
 }
 
-function CustomerRow({ customer }: { customer: CustomerWithStats }) {
+function CustomerRow({
+  customer,
+  onSelect,
+}: {
+  customer: CustomerWithStats;
+  onSelect: (c: CustomerWithStats) => void;
+}) {
   const initials = (customer.name ?? '?')
     .split(' ')
     .map((n) => n[0])
@@ -111,10 +127,149 @@ function CustomerRow({ customer }: { customer: CustomerWithStats }) {
         </div>
       </div>
 
-      <button className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-100 rounded-lg text-gray-600 text-sm font-medium transition-colors min-h-[44px] flex-shrink-0">
+      <button
+        onClick={() => onSelect(customer)}
+        className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-600 text-sm font-medium transition-colors min-h-[44px] flex-shrink-0"
+      >
         Details
         <ChevronRight className="w-4 h-4" />
       </button>
     </div>
+  );
+}
+
+function CustomerDetailSheet({
+  customer,
+  onClose,
+}: {
+  customer: CustomerWithStats | null;
+  onClose: () => void;
+}) {
+  const open = customer !== null;
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!customer) return null;
+
+  const initials = (customer.name ?? '?')
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase();
+
+  const memberSince = customer.created_at
+    ? new Date(customer.created_at).toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      })
+    : 'Unbekannt';
+
+  return (
+    <>
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
+      )}
+
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border rounded-t-2xl transition-transform duration-300 ease-out md:left-64 ${
+          open ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        style={{ maxHeight: '85vh', overflowY: 'auto' }}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-white px-5 pt-4 pb-3 border-b border-border z-10">
+          <div className="w-10 h-1 bg-gray-200 rounded-full absolute top-2 left-1/2 -translate-x-1/2" />
+          <div className="flex items-center justify-between mt-2">
+            <h2 className="text-black font-bold text-base">Kundendetails</h2>
+            <button
+              onClick={onClose}
+              className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:text-black transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-5 py-5 space-y-5 pb-8">
+          {/* Avatar + Name */}
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-black font-bold text-xl flex-shrink-0">
+              {initials}
+            </div>
+            <div>
+              <p className="text-black font-bold text-lg">{customer.name ?? 'Unbekannt'}</p>
+              <p className="text-gray-500 text-sm">{customer.email}</p>
+              {customer.newsletter_opt_in && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-600 border border-green-500/30 rounded text-[10px] font-bold mt-1">
+                  <Mail className="w-2.5 h-2.5" />
+                  Newsletter aktiv
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Statistik-Karten */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded-xl p-4 border border-border">
+              <p className="text-2xl font-bold text-black font-mono">{customer.order_count}</p>
+              <p className="text-gray-500 text-xs mt-0.5">Bestellungen</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4 border border-border">
+              <p className="text-2xl font-bold text-black font-mono">
+                € {customer.total_spent.toFixed(2)}
+              </p>
+              <p className="text-gray-500 text-xs mt-0.5">Gesamtumsatz</p>
+            </div>
+          </div>
+
+          {/* Details-Liste */}
+          <div className="space-y-0 border border-border rounded-xl overflow-hidden">
+            {customer.phone && (
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <span className="text-gray-500 text-sm">Telefon</span>
+                <span className="text-black text-sm font-medium">{customer.phone}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="text-gray-500 text-sm">E-Mail</span>
+              <span className="text-black text-sm font-medium truncate max-w-[60%] text-right">
+                {customer.email}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="text-gray-500 text-sm">Newsletter</span>
+              <span className={`text-sm font-medium ${customer.newsletter_opt_in ? 'text-green-600' : 'text-gray-400'}`}>
+                {customer.newsletter_opt_in ? 'Angemeldet' : 'Nicht angemeldet'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-gray-500 text-sm">Kunde seit</span>
+              <span className="text-black text-sm font-medium">{memberSince}</span>
+            </div>
+          </div>
+
+          {/* Durchschnittlicher Warenkorbwert */}
+          {customer.order_count > 0 && (
+            <div className="bg-gray-50 rounded-xl p-4 border border-border flex items-center justify-between">
+              <span className="text-gray-600 text-sm">Ø Warenkorbwert</span>
+              <span className="text-black font-bold font-mono text-lg">
+                € {(customer.total_spent / customer.order_count).toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

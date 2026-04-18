@@ -10,6 +10,11 @@ export type DailyClosingSummary = {
   orderCount: number
   onlineRevenue: number
   expectedCash: number
+  // GoBD-Erweiterungen:
+  cancelledCount: number
+  cancelledAmount: number
+  grossRevenue: number
+  zBonNumber: number
 }
 
 export type ClosingHistory = {
@@ -37,22 +42,35 @@ export function useDailyClosing() {
       const todayStart = new Date()
       todayStart.setHours(0, 0, 0, 0)
 
-      const { data: orders } = await supabase
+      // Alle heutigen Orders inkl. stornierte
+      const { data: allOrders } = await supabase
         .from('orders')
         .select('total, status, payment_status, fulfillment_type')
         .eq('store_id', DEMO_STORE_ID)
         .gte('created_at', todayStart.toISOString())
 
-      // any: Supabase returns untyped rows for partial selects
-      const validOrders = (orders ?? []).filter(
+      const orders = allOrders ?? []
+
+      const validOrders = orders.filter(
         (o: any) => !['cancelled', 'refunded'].includes(o.status)
+      )
+      const cancelledOrders = orders.filter(
+        (o: any) => ['cancelled', 'refunded'].includes(o.status)
       )
 
       const totalRevenue = validOrders.reduce((sum: number, o: any) => sum + (o.total ?? 0), 0)
       const onlineRevenue = validOrders
         .filter((o: any) => o.payment_status === 'paid')
         .reduce((sum: number, o: any) => sum + (o.total ?? 0), 0)
+      const cancelledAmount = cancelledOrders.reduce((sum: number, o: any) => sum + (o.total ?? 0), 0)
+      const grossRevenue = totalRevenue + cancelledAmount
       const expectedCash = totalRevenue - onlineRevenue
+
+      // Z-Bon-Nummer: Anzahl bisheriger Abschlüsse + 1
+      const { count: closingCount } = await supabase
+        .from('daily_closings')
+        .select('id', { count: 'exact', head: true })
+        .eq('store_id', DEMO_STORE_ID)
 
       return {
         date: todayStart.toISOString().split('T')[0],
@@ -60,6 +78,10 @@ export function useDailyClosing() {
         orderCount: validOrders.length,
         onlineRevenue,
         expectedCash,
+        cancelledCount: cancelledOrders.length,
+        cancelledAmount,
+        grossRevenue,
+        zBonNumber: (closingCount ?? 0) + 1,
       }
     } finally {
       setLoading(false)
@@ -79,6 +101,7 @@ export function useDailyClosing() {
         .upsert({
           store_id: DEMO_STORE_ID,
           closing_date: params.summary.date,
+          z_bon_number: params.summary.zBonNumber,
           total_revenue: params.summary.totalRevenue,
           online_revenue: params.summary.onlineRevenue,
           pos_revenue: params.summary.expectedCash,
@@ -130,6 +153,10 @@ export function useDailyClosing() {
     }
   }, [])
 
+  const generateXReport = useCallback(async (): Promise<DailyClosingSummary> => {
+    return fetchTodaySummary()
+  }, [fetchTodaySummary])
+
   return {
     loading,
     saving,
@@ -138,5 +165,6 @@ export function useDailyClosing() {
     fetchTodaySummary,
     saveClosing,
     fetchHistory,
+    generateXReport,
   }
 }

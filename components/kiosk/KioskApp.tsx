@@ -8,7 +8,9 @@ import Dashboard from './Dashboard';
 import Products from './Products';
 import Orders from './Orders';
 import Customers from './Customers';
+import Suppliers from './Suppliers';
 import ShopSettings from './ShopSettings';
+import Inventory from './Inventory';
 import { useProducts } from '@/hooks/use-products';
 
 export type ProductViewMode = 'table' | 'grid';
@@ -37,6 +39,7 @@ export default function KioskApp() {
           )}
           {activePage === 'orders' && <Orders />}
           {activePage === 'customers' && <Customers />}
+          {activePage === 'suppliers' && <Suppliers />}
           {activePage === 'settings' && (
             <ShopSettings
               categories={categories}
@@ -46,6 +49,7 @@ export default function KioskApp() {
               onViewModeChange={setViewMode}
             />
           )}
+          {activePage === 'inventory' && <Inventory />}
         </div>
       </main>
 

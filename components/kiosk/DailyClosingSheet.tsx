@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDailyClosing, DailyClosingSummary } from '@/hooks/use-daily-closing'
 import { toast } from 'sonner'
+import { generateXBericht, generateZBericht, printReport, downloadReport } from '@/lib/gobd-report'
+import { Printer, Download, FileText } from 'lucide-react'
 
 interface DailyClosingSheetProps {
   open: boolean
@@ -20,6 +22,8 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
   const [notes, setNotes] = useState('')
   const [view, setView] = useState<'closing' | 'history'>('closing')
   const [saved, setSaved] = useState(false)
+  const [xReportContent, setXReportContent] = useState<string | null>(null)
+  const [showXReport, setShowXReport] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -46,10 +50,32 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
       })
       setSaved(true)
       toast.success('Tagesabschluss gespeichert')
+      
+      // Z-Bericht automatisch als Download anbieten
+      const zContent = generateZBericht(
+        summary,
+        parseFloat(actualCash),
+        'Shisha World Hamburg',
+        notes
+      )
+      const dateStr = summary.date.replace(/-/g, '')
+      downloadReport(zContent, `Z-Bericht_${dateStr}_Z${String(summary.zBonNumber).padStart(4,'0')}.txt`)
+
       fetchHistory()
     } catch {
       toast.error('Fehler beim Speichern')
     }
+  }
+
+  const handleXReport = async () => {
+    let s = summary;
+    if (!s) {
+      s = await fetchTodaySummary();
+      setSummary(s);
+    }
+    const content = generateXBericht(s, 'Shisha World Hamburg')
+    setXReportContent(content)
+    setShowXReport(true)
   }
 
   const formatEur = (val: number) =>
@@ -119,6 +145,15 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                     </span>
                   </div>
                 </div>
+
+                {/* X-Bericht Button */}
+                <button
+                  onClick={handleXReport}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-xl text-sm font-medium transition-colors border border-zinc-700"
+                >
+                  <FileText className="w-4 h-4" />
+                  X-Bericht (Zwischenstand)
+                </button>
 
                 {/* Kassensturz */}
                 <div className="bg-zinc-800 rounded-xl p-4 space-y-3">
@@ -239,9 +274,62 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                   {closing.notes && (
                     <p className="text-zinc-500 text-xs mt-2 truncate">{closing.notes}</p>
                   )}
+                  <button
+                    onClick={() => {
+                      const content = [
+                        `Z-BERICHT ARCHIV`,
+                        `Datum: ${new Date(closing.closing_date).toLocaleDateString('de-DE')}`,
+                        `Umsatz: € ${closing.total_revenue.toFixed(2)}`,
+                        `Bestellungen: ${closing.order_count}`,
+                        `Differenz: ${closing.cash_difference !== null ? `€ ${closing.cash_difference.toFixed(2)}` : '—'}`,
+                        closing.notes ? `Notiz: ${closing.notes}` : '',
+                      ].filter(Boolean).join('\n')
+                      downloadReport(content, `Abschluss_${closing.closing_date}.txt`)
+                    }}
+                    className="mt-2 flex items-center gap-1 text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+                  >
+                    <Download className="w-3 h-3" />
+                    Herunterladen
+                  </button>
                 </div>
               ))
             )}
+          </div>
+        )}
+
+        {/* X-Bericht Modal */}
+        {showXReport && xReportContent && (
+          <div className="fixed inset-0 z-[60] bg-black/80 flex items-end justify-center p-4">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md max-h-[70vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+                <span className="text-white font-bold text-sm">X-Bericht</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => printReport(xReportContent, 'X-Bericht')}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-lg text-xs transition-colors"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    Drucken
+                  </button>
+                  <button
+                    onClick={() => downloadReport(xReportContent, `X-Bericht_${summary?.date?.replace(/-/g,'')}.txt`)}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-lg text-xs transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Speichern
+                  </button>
+                  <button
+                    onClick={() => setShowXReport(false)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-zinc-400 hover:text-white transition-colors text-lg leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <pre className="flex-1 overflow-y-auto px-4 py-3 text-zinc-300 text-xs font-mono leading-relaxed whitespace-pre">
+                {xReportContent}
+              </pre>
+            </div>
           </div>
         )}
       </SheetContent>
