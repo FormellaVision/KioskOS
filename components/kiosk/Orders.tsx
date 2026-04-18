@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Clock, Truck, ShoppingBag } from 'lucide-react';
-import { Order, OrderStatus } from '@/lib/kiosk-types';
-import { ORDERS } from '@/lib/kiosk-data';
+import { Check, Clock, Truck, ShoppingBag, XCircle, AlertCircle } from 'lucide-react';
+import { Order } from '@/lib/supabase/types';
+import { useOrders, OrderWithItems } from '@/hooks/use-orders';
 import OrderStatusBadge from './OrderStatusBadge';
 
 type FilterTab = 'all' | 'new' | 'confirmed' | 'ready' | 'picked_up';
 
-const FILTER_TABS: { key: FilterTab; label: string; count?: (orders: Order[]) => number }[] = [
+const FILTER_TABS: { key: FilterTab; label: string; count?: (orders: OrderWithItems[]) => number }[] = [
   { key: 'all', label: 'Alle' },
   { key: 'new', label: 'Neu', count: (orders) => orders.filter((o) => o.status === 'new').length },
   { key: 'confirmed', label: 'Bestätigt' },
@@ -16,25 +16,34 @@ const FILTER_TABS: { key: FilterTab; label: string; count?: (orders: Order[]) =>
   { key: 'picked_up', label: 'Abgeholt' },
 ];
 
+function timeAgo(dateString: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
+  if (diff < 60) return 'Gerade eben'
+  if (diff < 3600) return `vor ${Math.floor(diff / 60)} Min`
+  if (diff < 86400) return `vor ${Math.floor(diff / 3600)} Std`
+  return `vor ${Math.floor(diff / 86400)} Tagen`
+}
+
 export default function Orders() {
-  const [orders, setOrders] = useState<Order[]>(ORDERS);
+  const { orders, loading, error, advanceStatus, cancelOrder } = useOrders();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
 
-  const advanceStatus = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== id) return o;
-        const next: Record<OrderStatus, OrderStatus> = {
-          new: 'confirmed',
-          confirmed: 'ready',
-          ready: 'picked_up',
-          picked_up: 'picked_up',
-          cancelled: 'cancelled',
-        };
-        return { ...o, status: next[o.status] };
-      })
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-400">Bestellungen werden geladen...</p>
+      </div>
     );
-  };
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-red-500 gap-2">
+        <AlertCircle className="w-8 h-8" />
+        <p className="text-sm">{error}</p>
+      </div>
+    );
+  }
 
   const filtered = orders.filter((o) => {
     if (activeFilter === 'all') return true;
@@ -47,7 +56,7 @@ export default function Orders() {
     <div className="space-y-4 pb-4">
       <div>
         <h1 className="text-xl font-bold text-black">Bestellungen</h1>
-        <p className="text-gray-600 text-sm">{orders.length} Bestellungen heute</p>
+        <p className="text-gray-600 text-sm">{orders.length} Bestellungen</p>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -87,7 +96,12 @@ export default function Orders() {
       ) : (
         <div className="space-y-3">
           {filtered.map((order) => (
-            <OrderCard key={order.id} order={order} onAdvance={() => advanceStatus(order.id)} />
+            <OrderCard
+              key={order.id}
+              order={order}
+              onAdvance={() => advanceStatus(order.id, order.status)}
+              onCancel={() => cancelOrder(order.id)}
+            />
           ))}
         </div>
       )}
@@ -96,11 +110,16 @@ export default function Orders() {
 }
 
 interface OrderCardProps {
-  order: Order;
+  order: OrderWithItems;
   onAdvance: () => void;
+  onCancel: () => void;
 }
 
-function OrderCard({ order, onAdvance }: OrderCardProps) {
+function OrderCard({ order, onAdvance, onCancel }: OrderCardProps) {
+  const itemsSummary = order.items.length > 0
+    ? order.items.slice(0, 3).map(i => `${i.quantity}x ${i.product_name}`).join(', ')
+    : 'Keine Details';
+
   return (
     <div className={`bg-white rounded-xl border overflow-hidden shadow-sm ${
       order.status === 'new' ? 'border-red-200' : 'border-border'
@@ -109,37 +128,48 @@ function OrderCard({ order, onAdvance }: OrderCardProps) {
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-black font-bold font-mono">{order.id}</span>
+              <span className="text-black font-bold font-mono">#{order.id.slice(-4).toUpperCase()}</span>
               <span className="flex items-center gap-1 text-gray-600 text-xs">
                 <Clock className="w-3 h-3" />
-                {order.time}
+                {timeAgo(order.created_at)}
               </span>
-              {order.type === 'delivery' && (
+              {order.fulfillment_type === 'delivery' && (
                 <span className="flex items-center gap-1 text-gray-600 text-xs">
                   <Truck className="w-3 h-3" />
                   Lieferung
                 </span>
               )}
             </div>
-            <p className="text-black text-sm font-medium mt-0.5">{order.customer}</p>
+            <p className="text-black text-sm font-medium mt-0.5">{order.customer_name ?? 'Unbekannt'}</p>
           </div>
           <OrderStatusBadge status={order.status} large />
         </div>
 
         <p className="text-gray-600 text-sm leading-relaxed bg-gray-100 rounded-lg px-3 py-2">
-          {order.items}
+          {itemsSummary}
         </p>
 
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
           <span className="text-black font-bold text-lg font-mono">€ {order.total.toFixed(2)}</span>
-          <ActionButton status={order.status} onAction={onAdvance} />
+          <div className="flex items-center gap-2">
+            {order.status === 'new' && (
+              <button
+                onClick={onCancel}
+                className="flex items-center gap-1 px-3 py-2.5 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg text-sm transition-colors min-h-[44px]"
+                title="Stornieren"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            )}
+            <ActionButton status={order.status} onAction={onAdvance} />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function ActionButton({ status, onAction }: { status: OrderStatus; onAction: () => void }) {
+function ActionButton({ status, onAction }: { status: Order['status']; onAction: () => void }) {
   if (status === 'new') {
     return (
       <button

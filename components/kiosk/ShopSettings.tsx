@@ -152,7 +152,7 @@ export default function ShopSettings({
           </div>
           <div className="divide-y divide-border">
             {[
-              { icon: Store, label: 'Shop-Name', value: "Ali's Kiosk" },
+              { icon: Store, label: 'Shop-Name', value: "Alis Shop" },
               { icon: MapPin, label: 'Adresse', value: 'Altona, Hamburg' },
               { icon: Mail, label: 'E-Mail', value: 'ali@kiosk.de' },
               { icon: Phone, label: 'Telefon', value: '+49 40 12345678' },

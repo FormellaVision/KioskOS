@@ -16,10 +16,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="de" className="dark">
+    <html lang="de" className="dark" suppressHydrationWarning>
       <body className={inter.className}>
+        <Toaster richColors position="top-center" />
         {children}
-        <Toaster richColors position="bottom-center" />
       </body>
     </html>
   );
