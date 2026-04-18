@@ -38,10 +38,10 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
             <button
               key={page}
               onClick={() => onNavigate(page)}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all min-h-[48px] ${
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left select-none transition-all min-h-[48px] ${
                 isActive
                   ? 'bg-red-50 text-red-500 border border-red-200'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-black'
+                  : 'text-gray-600 hover:bg-gray-100 active:bg-gray-200 hover:text-black'
               }`}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />

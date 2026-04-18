@@ -27,20 +27,26 @@ export default function KioskApp() {
       <Sidebar activePage={activePage} onNavigate={handleNavigate} />
 
       <main className="md:pl-64 min-h-screen">
-        <div className="w-full px-4 pt-6 pb-20 md:pb-8 md:px-6">
-          {activePage === 'dashboard' && (
+        <div className="w-full px-4 pt-6 pb-20 md:pb-8 md:px-6 max-w-7xl mx-auto">
+          <div className={`${activePage === 'dashboard' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
             <Dashboard onNavigate={(page) => handleNavigate(page as NavPage)} />
-          )}
-          {activePage === 'products' && (
+          </div>
+          <div className={`${activePage === 'products' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
             <Products
               categories={categories}
               viewMode={viewMode}
             />
-          )}
-          {activePage === 'orders' && <Orders />}
-          {activePage === 'customers' && <Customers />}
-          {activePage === 'suppliers' && <Suppliers />}
-          {activePage === 'settings' && (
+          </div>
+          <div className={`${activePage === 'orders' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+            <Orders />
+          </div>
+          <div className={`${activePage === 'customers' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+            <Customers />
+          </div>
+          <div className={`${activePage === 'suppliers' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+            <Suppliers />
+          </div>
+          <div className={`${activePage === 'settings' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
             <ShopSettings
               categories={categories}
               onAddCategory={addCategory}
@@ -48,8 +54,10 @@ export default function KioskApp() {
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
-          )}
-          {activePage === 'inventory' && <Inventory />}
+          </div>
+          <div className={`${activePage === 'inventory' ? 'block' : 'hidden'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+            <Inventory />
+          </div>
         </div>
       </main>
 

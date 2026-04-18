@@ -182,6 +182,7 @@ export function useDashboardStats() {
       })
     } catch (err) {
       console.error('Dashboard stats error:', err)
+      // Keep existing stats but stop loading
     } finally {
       setLoading(false)
     }

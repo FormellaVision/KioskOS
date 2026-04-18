@@ -21,6 +21,19 @@ export type Category = {
   created_at: string
 }
 
+export type Supplier = {
+  id: string
+  store_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  address: string | null
+  website: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type Product = {
   id: string
   store_id: string
@@ -33,6 +46,7 @@ export type Product = {
   sale_price: number | null
   supplier_name: string | null
   supplier_contact: string | null
+  supplier_id: string | null
   is_available: boolean
   stock_count: number | null
   is_archived: boolean

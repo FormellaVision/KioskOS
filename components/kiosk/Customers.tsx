@@ -149,11 +149,11 @@ function CustomerDetailSheet({
 
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('overflow-hidden');
     } else {
-      document.body.style.overflow = '';
+      document.body.classList.remove('overflow-hidden');
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => { document.body.classList.remove('overflow-hidden'); };
   }, [open]);
 
   if (!customer) return null;
@@ -194,14 +194,14 @@ function CustomerDetailSheet({
             <h2 className="text-black font-bold text-base">Kundendetails</h2>
             <button
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:text-black transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 hover:text-black transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="px-5 py-5 space-y-5 pb-8">
+        <div className="px-5 py-5 space-y-5 pb-24 md:pb-8">
           {/* Avatar + Name */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-black font-bold text-xl flex-shrink-0">

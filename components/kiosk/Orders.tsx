@@ -106,9 +106,16 @@ export default function Orders() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-gray-600">
-          <ShoppingBag className="w-12 h-12 mb-3 opacity-30" />
-          <p className="text-sm">Keine Bestellungen in dieser Kategorie</p>
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-dashed border-gray-300">
+          <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+            <ShoppingBag className="w-8 h-8 text-gray-300" />
+          </div>
+          <h3 className="text-black font-bold text-lg">Keine Bestellungen</h3>
+          <p className="text-gray-500 text-sm max-w-[240px] mt-1">
+            {activeFilter === 'all' 
+              ? 'Es sind noch keine Bestellungen im System eingegangen.'
+              : 'Aktuell gibt es keine Bestellungen in dieser Kategorie.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
