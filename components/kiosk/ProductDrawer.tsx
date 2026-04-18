@@ -15,7 +15,7 @@ interface ProductDrawerProps {
 
 interface FormState {
   name: string;
-  ean: string;
+  gtin: string;
   price: string;
   salePrice: string;
   stockCount: string;
@@ -29,7 +29,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
 
   const emptyForm: FormState = {
     name: '',
-    ean: '',
+    gtin: '',
     price: '',
     salePrice: '',
     stockCount: '',
@@ -45,7 +45,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
       if (product) {
         setForm({
           name: product.name,
-          ean: product.ean ?? '',
+          gtin: product.gtin ?? '',
           price: product.price.toString(),
           salePrice: product.sale_price != null ? product.sale_price.toString() : '',
           stockCount: product.stock_count != null ? product.stock_count.toString() : '',
@@ -73,7 +73,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
     onSave({
       name: form.name.trim(),
       description: null,
-      ean: form.ean.trim() || null,
+      gtin: form.gtin.trim() || null,
       price: parseFloat(form.price) || 0,
       sale_price: form.salePrice ? parseFloat(form.salePrice) : null,
       stock_count: form.stockCount !== '' ? parseInt(form.stockCount) : null,
@@ -134,8 +134,8 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
               EAN / Barcode
             </label>
             <input
-              name="ean"
-              value={form.ean}
+              name="gtin"
+              value={form.gtin}
               onChange={handleChange}
               placeholder="z. B. 9002490100070"
               className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"

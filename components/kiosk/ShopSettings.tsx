@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
-import { LayoutList, LayoutGrid, Trash2, Plus, Store, MapPin, Mail, Phone } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LayoutList, LayoutGrid, Trash2, Plus, Store, MapPin, Mail, Phone, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProductViewMode } from './KioskApp';
 import { Category } from '@/lib/supabase/types';
+import { useStore } from '@/hooks/use-store';
 
 interface ShopSettingsProps {
   categories: Category[];
   onAddCategory: (name: string) => Promise<Category>;
+  onDeleteCategory: (id: string) => Promise<void>;
   viewMode: ProductViewMode;
   onViewModeChange: (mode: ProductViewMode) => void;
 }
@@ -16,10 +18,25 @@ interface ShopSettingsProps {
 export default function ShopSettings({
   categories,
   onAddCategory,
+  onDeleteCategory,
   viewMode,
   onViewModeChange
 }: ShopSettingsProps) {
   const [newCat, setNewCat] = useState('');
+  const { store, loading: storeLoading, saving, updateStore } = useStore();
+  const [editingStore, setEditingStore] = useState(false);
+  const [storeForm, setStoreForm] = useState({ name: '', address: '', email: '', phone: '' });
+
+  useEffect(() => {
+    if (store) {
+      setStoreForm({
+        name: store.name ?? '',
+        address: store.address ?? '',
+        email: store.email ?? '',
+        phone: store.phone ?? '',
+      });
+    }
+  }, [store]);
 
   const handleAddCategory = async () => {
     const name = newCat.trim();
@@ -106,8 +123,17 @@ export default function ShopSettings({
                   </div>
                   <div className="flex items-center gap-4">
                     <button
+                      onClick={async () => {
+                        if (!window.confirm(`Kategorie "${cat.name}" wirklich löschen?`)) return
+                        try {
+                          await onDeleteCategory(cat.id)
+                          toast.success(`Kategorie "${cat.name}" gelöscht`)
+                        } catch (err: unknown) {
+                          toast.error(err instanceof Error ? err.message : 'Löschen fehlgeschlagen')
+                        }
+                      }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      title="Kategorie löschen (Phase 2)"
+                      title="Kategorie löschen"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -144,37 +170,83 @@ export default function ShopSettings({
           Shop-Informationen
         </p>
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-border">
-            <p className="text-black font-semibold text-sm">Shop-Daten</p>
-            <p className="text-gray-500 text-xs mt-0.5">
-              Diese Daten erscheinen auf Belegen und der Storefront
-            </p>
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+            <div>
+              <p className="text-black font-semibold text-sm">Shop-Daten</p>
+              <p className="text-gray-500 text-xs mt-0.5">Erscheinen auf Belegen und der Storefront</p>
+            </div>
+            {!editingStore && (
+              <button
+                onClick={() => setEditingStore(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors min-h-[44px]"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Bearbeiten
+              </button>
+            )}
           </div>
-          <div className="divide-y divide-border">
-            {[
-              { icon: Store, label: 'Shop-Name', value: "Alis Shop" },
-              { icon: MapPin, label: 'Adresse', value: 'Altona, Hamburg' },
-              { icon: Mail, label: 'E-Mail', value: 'ali@kiosk.de' },
-              { icon: Phone, label: 'Telefon', value: '+49 40 12345678' },
-            ].map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-center gap-4 px-5 py-3.5">
-                <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-                  <input
-                    value={value}
-                    readOnly
-                    className="w-full text-sm text-gray-500 bg-transparent cursor-not-allowed focus:outline-none"
-                  />
+
+          {storeLoading ? (
+            <div className="px-5 py-4 space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {([
+                { icon: Store, label: 'Shop-Name', key: 'name' as const },
+                { icon: MapPin, label: 'Adresse', key: 'address' as const },
+                { icon: Mail, label: 'E-Mail', key: 'email' as const },
+                { icon: Phone, label: 'Telefon', key: 'phone' as const },
+              ]).map(({ icon: Icon, label, key }) => (
+                <div key={key} className="flex items-center gap-4 px-5 py-3.5">
+                  <Icon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+                    {editingStore ? (
+                      <input
+                        value={storeForm[key]}
+                        onChange={(e) => setStoreForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                        className="w-full text-sm text-black bg-gray-50 border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:border-red-500 transition-colors"
+                      />
+                    ) : (
+                      <p className="text-sm text-black truncate">{storeForm[key] || '—'}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="px-5 py-3 border-t border-border bg-gray-50">
-            <p className="text-xs text-gray-400">
-              Bearbeitung in Einstellungen verfügbar (Phase 2)
-            </p>
-          </div>
+              ))}
+            </div>
+          )}
+
+          {editingStore && (
+            <div className="px-5 py-4 border-t border-border flex gap-3">
+              <button
+                onClick={async () => {
+                  try {
+                    await updateStore(storeForm)
+                    toast.success('Shop-Daten gespeichert')
+                    setEditingStore(false)
+                  } catch {
+                    toast.error('Speichern fehlgeschlagen')
+                  }
+                }}
+                disabled={saving}
+                className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white font-bold rounded-xl text-sm transition-colors"
+              >
+                {saving ? 'Wird gespeichert...' : 'Speichern'}
+              </button>
+              <button
+                onClick={() => {
+                  setEditingStore(false)
+                  if (store) setStoreForm({ name: store.name, address: store.address ?? '', email: store.email ?? '', phone: store.phone ?? '' })
+                }}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-black font-medium rounded-xl text-sm transition-colors"
+              >
+                Abbrechen
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

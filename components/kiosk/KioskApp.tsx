@@ -16,7 +16,7 @@ export type ProductViewMode = 'table' | 'grid';
 export default function KioskApp() {
   const [activePage, setActivePage] = useState<NavPage>('dashboard');
   const [viewMode, setViewMode] = useState<ProductViewMode>('table');
-  const { categories, addCategory } = useProducts();
+  const { categories, addCategory, deleteCategory } = useProducts();
 
   const handleNavigate = (page: NavPage) => setActivePage(page);
 
@@ -41,6 +41,7 @@ export default function KioskApp() {
             <ShopSettings
               categories={categories}
               onAddCategory={addCategory}
+              onDeleteCategory={deleteCategory}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />

@@ -28,7 +28,7 @@ export type Product = {
   name: string
   description: string | null
   image_url: string | null
-  ean: string | null
+  gtin: string | null
   price: number
   sale_price: number | null
   supplier_name: string | null

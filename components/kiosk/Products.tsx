@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Plus, Pencil, Package, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Plus, Pencil, Package, ChevronUp, ChevronDown, Upload } from 'lucide-react';
 import { Product, Category } from '@/lib/supabase/types';
 import { useProducts } from '@/hooks/use-products';
 import ProductDrawer from './ProductDrawer';
 import type { ProductViewMode } from './KioskApp';
 import { toast } from 'sonner';
+import { CSVImportDialog } from '@/components/kiosk/CSVImportDialog';
 
 type SortKey = 'name' | 'price' | 'stock_count' | 'is_available';
 type SortDir = 'asc' | 'desc';
@@ -21,6 +22,7 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
     products,
     loading,
     error,
+    refetch,
     toggleAvailability,
     addProduct,
     updateProduct,
@@ -34,6 +36,15 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
+
+  const handleToggle = async (productId: string, currentValue: boolean) => {
+    try {
+      await toggleAvailability(productId, currentValue)
+    } catch {
+      toast.error('Verfügbarkeit konnte nicht geändert werden')
+    }
+  }
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -136,14 +147,24 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
           <h1 className="text-xl font-bold text-black">Produkte</h1>
           <p className="text-gray-600 text-sm">{products.length} Artikel im Sortiment</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">Produkt hinzufügen</span>
-          <span className="sm:hidden">Neu</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCsvImportOpen(true)}
+            className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-black font-bold px-4 py-2.5 rounded-xl text-sm transition-colors border border-border"
+          >
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">CSV Import</span>
+            <span className="sm:hidden">CSV</span>
+          </button>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Produkt hinzufügen</span>
+            <span className="sm:hidden">Neu</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-2">
@@ -223,7 +244,7 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
                   product={product}
                   categoryName={categoryMap[product.category_id ?? ''] ?? '—'}
                   highlight={highlightId === product.id}
-                  onToggle={() => toggleAvailability(product.id, product.is_available)}
+                  onToggle={() => handleToggle(product.id, product.is_available)}
                   onEdit={() => openEdit(product)}
                 />
               ))}
@@ -293,7 +314,7 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
                       index={idx + 1}
                       categoryName={categoryMap[product.category_id ?? ''] ?? '—'}
                       highlight={highlightId === product.id}
-                      onToggle={() => toggleAvailability(product.id, product.is_available)}
+                      onToggle={() => handleToggle(product.id, product.is_available)}
                       onEdit={() => openEdit(product)}
                     />
                   ))
@@ -321,6 +342,15 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
         }}
         onSave={handleSaveProduct}
         onDelete={editProduct ? () => handleDeleteProduct(editProduct.id) : undefined}
+      />
+
+      <CSVImportDialog
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        onImportComplete={() => {
+          refetch()
+          setCsvImportOpen(false)
+        }}
       />
     </div>
   );
@@ -355,8 +385,8 @@ function TableRow({ product, index, categoryName, highlight, onToggle, onEdit }:
         <p className={`font-semibold text-sm leading-tight truncate max-w-[220px] ${isUnavailable ? 'text-gray-400' : 'text-black'}`}>
           {product.name}
         </p>
-        {product.ean && (
-          <p className="text-xs text-gray-400 font-mono mt-0.5">{product.ean}</p>
+        {product.gtin && (
+          <p className="text-xs text-gray-400 font-mono mt-0.5">{product.gtin}</p>
         )}
       </td>
       <td className="hidden sm:table-cell px-3 py-2">

@@ -5,6 +5,7 @@ import { Check, Clock, Truck, ShoppingBag, XCircle, AlertCircle } from 'lucide-r
 import { Order } from '@/lib/supabase/types';
 import { useOrders, OrderWithItems } from '@/hooks/use-orders';
 import OrderStatusBadge from './OrderStatusBadge';
+import { toast } from 'sonner';
 
 type FilterTab = 'all' | 'new' | 'confirmed' | 'ready' | 'picked_up';
 
@@ -27,6 +28,22 @@ function timeAgo(dateString: string): string {
 export default function Orders() {
   const { orders, loading, error, advanceStatus, cancelOrder } = useOrders();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+
+  const handleAdvance = async (orderId: string, currentStatus: Order['status']) => {
+    await advanceStatus(orderId, currentStatus)
+    const nextLabels: Record<string, string> = {
+      new: 'Bestellung bestätigt ✓',
+      confirmed: 'Bestellung bereit gemeldet ✓',
+      ready: 'Bestellung als abgeholt markiert ✓',
+    }
+    toast.success(nextLabels[currentStatus] ?? 'Status aktualisiert')
+  }
+
+  const handleCancel = async (orderId: string) => {
+    if (!window.confirm('Bestellung wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.')) return
+    await cancelOrder(orderId)
+    toast.success('Bestellung storniert')
+  }
 
   if (loading) {
     return (
@@ -99,8 +116,8 @@ export default function Orders() {
             <OrderCard
               key={order.id}
               order={order}
-              onAdvance={() => advanceStatus(order.id, order.status)}
-              onCancel={() => cancelOrder(order.id)}
+              onAdvance={() => handleAdvance(order.id, order.status)}
+              onCancel={() => handleCancel(order.id)}
             />
           ))}
         </div>
