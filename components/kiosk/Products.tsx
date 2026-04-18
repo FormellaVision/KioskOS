@@ -177,31 +177,35 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
         </select>
       </div>
 
-      {/* Category filter tabs using props */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        <button
-          onClick={() => setActiveCategoryId('all')}
-          className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[34px] ${
-            activeCategoryId === 'all'
-              ? 'bg-red-500 text-white'
-              : 'bg-white text-gray-600 border border-border hover:text-black'
-          }`}
-        >
-          Alle
-        </button>
-        {categoriesFromProps.map((cat) => (
+      {/* Category filter tabs — horizontal scroll with right fade */}
+      <div className="relative">
+        <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <button
-            key={cat.id}
-            onClick={() => setActiveCategoryId(cat.id)}
+            onClick={() => setActiveCategoryId('all')}
             className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[34px] ${
-              activeCategoryId === cat.id
+              activeCategoryId === 'all'
                 ? 'bg-red-500 text-white'
                 : 'bg-white text-gray-600 border border-border hover:text-black'
             }`}
           >
-            {cat.name}
+            Alle
           </button>
-        ))}
+          {categoriesFromProps.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setActiveCategoryId(cat.id)}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[34px] ${
+                activeCategoryId === cat.id
+                  ? 'bg-red-500 text-white'
+                  : 'bg-white text-gray-600 border border-border hover:text-black'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+        {/* Rechter Fade-Indikator: signalisiert scrollbaren Inhalt */}
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#DEDEDE] to-transparent pointer-events-none" />
       </div>
 
       {viewMode === 'grid' ? (
@@ -400,7 +404,7 @@ function TableRow({ product, index, categoryName, highlight, onToggle, onEdit }:
         <button
           onClick={onEdit}
           aria-label="Bearbeiten"
-          className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+          className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
         >
           <Pencil className="w-3.5 h-3.5" />
         </button>
@@ -455,7 +459,7 @@ function GridCard({ product, categoryName, highlight, onToggle, onEdit }: GridCa
         </button>
         <button
           onClick={onEdit}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
           aria-label="Bearbeiten"
         >
           <Pencil className="w-3.5 h-3.5" />

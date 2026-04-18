@@ -25,7 +25,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
         </div>
         <div>
           <p className="text-black font-bold text-sm leading-none">KioskOS</p>
-          <p className="text-gray-600 text-xs mt-0.5">Ali&apos;s Kiosk</p>
+          <p className="text-gray-600 text-xs mt-0.5">Alis Shop</p>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export default function Sidebar({ activePage, onNavigate }: SidebarProps) {
       <div className="px-4 py-4 border-t border-border">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-black text-xs font-bold">
-            M
+            A
           </div>
           <div>
             <p className="text-black text-sm font-medium">Ali</p>

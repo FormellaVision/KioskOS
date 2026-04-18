@@ -1,16 +1,33 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Users, Mail, ShoppingBag, ChevronRight } from 'lucide-react';
-import { Customer } from '@/lib/kiosk-types';
-import { CUSTOMERS } from '@/lib/kiosk-data';
+import { Search, Users, Mail, ShoppingBag, ChevronRight, AlertCircle } from 'lucide-react';
+import { useCustomers, CustomerWithStats } from '@/hooks/use-customers';
 
 export default function Customers() {
+  const { customers, loading, error } = useCustomers();
   const [search, setSearch] = useState('');
 
-  const filtered = CUSTOMERS.filter(
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-400">Kunden werden geladen...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-red-500 gap-2">
+        <AlertCircle className="w-8 h-8" />
+        <p className="text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  const filtered = customers.filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      (c.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -18,7 +35,7 @@ export default function Customers() {
     <div className="space-y-4 pb-4">
       <div>
         <h1 className="text-xl font-bold text-black">Kunden</h1>
-        <p className="text-gray-600 text-sm">{CUSTOMERS.length} registrierte Kunden</p>
+        <p className="text-gray-600 text-sm">{customers.length} registrierte Kunden</p>
       </div>
 
       <div className="relative">
@@ -34,12 +51,12 @@ export default function Customers() {
 
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white shadow-sm rounded-xl p-4 border border-border">
-          <p className="text-2xl font-bold text-black font-mono">{CUSTOMERS.length}</p>
+          <p className="text-2xl font-bold text-black font-mono">{customers.length}</p>
           <p className="text-gray-600 text-xs mt-1">Kunden gesamt</p>
         </div>
         <div className="bg-white shadow-sm rounded-xl p-4 border border-border">
           <p className="text-2xl font-bold text-green-500 font-mono">
-            {CUSTOMERS.filter((c) => c.newsletter).length}
+            {customers.filter((c) => c.newsletter_opt_in).length}
           </p>
           <p className="text-gray-600 text-xs mt-1">Newsletter</p>
         </div>
@@ -61,8 +78,8 @@ export default function Customers() {
   );
 }
 
-function CustomerRow({ customer }: { customer: Customer }) {
-  const initials = customer.name
+function CustomerRow({ customer }: { customer: CustomerWithStats }) {
+  const initials = (customer.name ?? '?')
     .split(' ')
     .map((n) => n[0])
     .join('')
@@ -76,8 +93,8 @@ function CustomerRow({ customer }: { customer: Customer }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-black font-bold text-sm">{customer.name}</p>
-          {customer.newsletter && (
+          <p className="text-black font-bold text-sm">{customer.name ?? 'Unbekannt'}</p>
+          {customer.newsletter_opt_in === true && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-500 border border-green-500/30 rounded text-[10px] font-bold">
               <Mail className="w-2.5 h-2.5" />
               Newsletter
@@ -85,9 +102,12 @@ function CustomerRow({ customer }: { customer: Customer }) {
           )}
         </div>
         <p className="text-gray-600 text-xs mt-0.5 truncate">{customer.email}</p>
-        <div className="flex items-center gap-1 mt-1">
-          <ShoppingBag className="w-3 h-3 text-gray-600" />
-          <span className="text-gray-600 text-xs">{customer.orders} Bestellungen</span>
+        <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-1">
+            <ShoppingBag className="w-3 h-3 text-gray-600" />
+            <span className="text-gray-600 text-xs">{customer.order_count} Bestellungen</span>
+          </div>
+          <span className="text-gray-600 text-xs">€ {customer.total_spent.toFixed(2)}</span>
         </div>
       </div>
 
