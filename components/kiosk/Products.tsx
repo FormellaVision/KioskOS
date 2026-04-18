@@ -232,9 +232,23 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
       {viewMode === 'grid' ? (
         <>
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <Package className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">Keine Produkte gefunden</p>
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-dashed border-gray-300">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <Package className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="text-black font-bold text-lg">Keine Produkte gefunden</h3>
+              <p className="text-gray-500 text-sm max-w-[240px] mt-1 mb-6">
+                Wir konnten keine Produkte für deine Suche oder Filter finden.
+              </p>
+              <button
+                onClick={() => {
+                  setSearch('');
+                  setActiveCategoryId('all');
+                }}
+                className="text-red-500 font-bold text-sm hover:underline"
+              >
+                Filter zurücksetzen
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -301,9 +315,20 @@ export default function Products({ categories: categoriesFromProps, viewMode }: 
               <tbody className="divide-y divide-border">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-16 text-gray-400">
-                      <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">Keine Produkte gefunden</p>
+                    <td colSpan={8} className="text-center py-20">
+                      <div className="flex flex-col items-center">
+                        <Package className="w-10 h-10 text-gray-200 mb-2" />
+                        <p className="text-sm text-gray-500 font-medium">Keine Produkte gefunden</p>
+                        <button
+                          onClick={() => {
+                            setSearch('');
+                            setActiveCategoryId('all');
+                          }}
+                          className="mt-2 text-red-500 text-xs font-bold hover:underline"
+                        >
+                          Filter zurücksetzen
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -453,46 +478,85 @@ interface GridCardProps {
 
 function GridCard({ product, categoryName, highlight, onToggle, onEdit }: GridCardProps) {
   const isUnavailable = !product.is_available;
+  const stockZero = product.stock_count === 0;
+
   return (
-    <div className={`bg-white rounded-xl border transition-all shadow-sm ${highlight ? 'border-red-300 ring-2 ring-red-100' : 'border-border'} ${isUnavailable ? 'opacity-70' : ''}`}>
-      <div className="p-4">
-        <div className="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+    <div className={`bg-white rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md hover:border-red-200 group relative overflow-hidden ${
+      highlight ? 'border-red-400 ring-2 ring-red-100' : 'border-border'
+    } ${isUnavailable ? 'opacity-80' : ''}`}>
+      
+      {/* Availability Shadow Overlay for Inactive */}
+      {isUnavailable && (
+        <div className="absolute inset-0 bg-gray-50/40 pointer-events-none z-0" />
+      )}
+
+      <div className="p-4 relative z-10">
+        <div className="w-full h-32 bg-gray-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-[1.02] transition-transform">
           {product.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover rounded-lg" />
+            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover rounded-xl" />
           ) : (
-            <Package className="w-8 h-8 text-gray-300" />
+            <div className="flex flex-col items-center gap-2">
+              <Package className="w-10 h-10 text-gray-200" />
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Kein Bild</span>
+            </div>
           )}
         </div>
-        <p className={`font-bold text-sm leading-tight ${isUnavailable ? 'text-gray-400' : 'text-black'}`}>{product.name}</p>
-        <div className="flex items-center justify-between mt-1">
-          <span className="inline-block px-2 py-0.5 bg-gray-100 rounded text-gray-600 text-[10px] font-semibold uppercase tracking-wide">
+
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <h3 className={`font-bold text-sm leading-tight text-black line-clamp-2 min-h-[2.5rem]`}>
+            {product.name}
+          </h3>
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+             <span className="text-black font-bold text-sm font-mono whitespace-nowrap">
+               € {product.price.toFixed(2)}
+             </span>
+             {product.sale_price != null && (
+               <span className="text-red-500 font-bold text-[10px] font-mono whitespace-nowrap">
+                 Oferta: € {product.sale_price.toFixed(2)}
+               </span>
+             )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-3">
+          <span className="inline-block px-2.5 py-1 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">
             {categoryName}
           </span>
-          <span className={`font-mono font-bold text-sm ${isUnavailable ? 'text-gray-400' : 'text-black'}`}>
-            € {product.price.toFixed(2)}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">Bestand:</span>
+            {product.stock_count === null ? (
+              <span className="text-xs font-bold text-gray-400">∞</span>
+            ) : stockZero ? (
+              <span className="text-xs font-bold text-red-500">0</span>
+            ) : (
+              <span className={`text-xs font-bold ${product.stock_count <= 5 ? 'text-amber-500' : 'text-black'}`}>
+                {product.stock_count}
+              </span>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+
+      <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50 border-t border-border relative z-10">
         <button
           onClick={onToggle}
-          className="flex items-center gap-2 min-h-[36px]"
+          className="flex items-center gap-2 min-h-[44px]"
           aria-label={product.is_available ? 'Deaktivieren' : 'Aktivieren'}
         >
-          <div className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${product.is_available ? 'bg-green-500' : 'bg-gray-300'}`}>
-            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${product.is_available ? 'translate-x-5' : 'translate-x-0'}`} />
+          <div className={`relative w-8 h-4 rounded-full transition-colors duration-200 ${product.is_available ? 'bg-green-500' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform duration-200 ${product.is_available ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
           </div>
-          <span className={`text-xs font-medium ${product.is_available ? 'text-green-600' : 'text-gray-400'}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${product.is_available ? 'text-green-600' : 'text-gray-400'}`}>
             {product.is_available ? 'Aktiv' : 'Inaktiv'}
           </span>
         </button>
         <button
           onClick={onEdit}
-          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition-colors"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl bg-white border border-border text-gray-400 hover:text-black hover:border-gray-400 transition-all shadow-sm"
           aria-label="Bearbeiten"
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Pencil className="w-4 h-4" />
         </button>
       </div>
     </div>

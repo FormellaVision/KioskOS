@@ -3,25 +3,15 @@
 import { useCallback, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { DEMO_STORE_ID } from '@/lib/constants'
+import { Supplier as DBSupplier } from '@/lib/supabase/types'
 
-export interface SupplierProduct {
-  id: string
-  name: string
-  price: number
-  is_available: boolean
-  stock_count: number | null
-}
-
-export interface Supplier {
-  name: string
-  contact: string | null
+export interface SupplierWithStats extends DBSupplier {
   productCount: number
-  products: SupplierProduct[]
-  totalValue: number  // Summe aller Produktpreise
+  totalValue: number
 }
 
 export function useSuppliers() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierWithStats[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,42 +19,34 @@ export function useSuppliers() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, price, is_available, stock_count, supplier_name, supplier_contact')
+      // 1. Fetch all suppliers
+      const { data: sups, error: supErr } = await supabase
+        .from('suppliers')
+        .select('*')
         .eq('store_id', DEMO_STORE_ID)
+        .order('name', { ascending: true })
+
+      if (supErr) throw supErr
+
+      // 2. Fetch product stats for these suppliers
+      const { data: products, error: prodErr } = await supabase
+        .from('products')
+        .select('id, price, supplier_id')
         .eq('is_archived', false)
-        .not('supplier_name', 'is', null)
-        .order('supplier_name', { ascending: true })
 
-      if (error) throw error
+      if (prodErr) throw prodErr
 
-      // Gruppieren nach supplier_name
-      const map = new Map<string, Supplier>()
-      for (const p of (data ?? [])) {
-        const sName = p.supplier_name as string
-        if (!map.has(sName)) {
-          map.set(sName, {
-            name: sName,
-            contact: p.supplier_contact ?? null,
-            productCount: 0,
-            products: [],
-            totalValue: 0,
-          })
+      // 3. Aggregate stats
+      const stats = (sups || []).map(s => {
+        const supProducts = (products || []).filter(p => p.supplier_id === s.id)
+        return {
+          ...s,
+          productCount: supProducts.length,
+          totalValue: supProducts.reduce((sum, p) => sum + (p.price || 0), 0)
         }
-        const s = map.get(sName)!
-        s.products.push({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          is_available: p.is_available,
-          stock_count: p.stock_count,
-        })
-        s.productCount++
-        s.totalValue += p.price
-      }
+      })
 
-      setSuppliers(Array.from(map.values()))
+      setSuppliers(stats)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Fehler beim Laden')
     } finally {
@@ -72,30 +54,45 @@ export function useSuppliers() {
     }
   }, [])
 
-  // Kontakt für alle Produkte eines Lieferanten updaten
-  const updateSupplierContact = async (supplierName: string, contact: string) => {
-    const { error } = await supabase
-      .from('products')
-      .update({ supplier_contact: contact || null })
-      .eq('store_id', DEMO_STORE_ID)
-      .eq('supplier_name', supplierName)
+  const createSupplier = async (data: Omit<DBSupplier, 'id' | 'store_id' | 'created_at' | 'updated_at'>) => {
+    const { data: newSup, error } = await supabase
+      .from('suppliers')
+      .insert({
+        ...data,
+        store_id: DEMO_STORE_ID
+      })
+      .select()
+      .single()
 
     if (error) throw error
-
-    setSuppliers(prev =>
-      prev.map(s => s.name === supplierName ? { ...s, contact: contact || null } : s)
-    )
+    await fetchSuppliers()
+    return newSup
   }
 
-  // Lieferantennamen für alle Produkte umbenennen
-  const renameSupplier = async (oldName: string, newName: string) => {
-    if (!newName.trim()) throw new Error('Name darf nicht leer sein')
+  const updateSupplier = async (id: string, data: Partial<Omit<DBSupplier, 'id' | 'store_id' | 'created_at' | 'updated_at'>>) => {
+    const { error } = await supabase
+      .from('suppliers')
+      .update(data)
+      .eq('id', id)
+
+    if (error) throw error
+    await fetchSuppliers()
+  }
+
+  const deleteSupplier = async (id: string) => {
+    // Check if supplier is used
+    const { count, error: countErr } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('supplier_id', id)
+
+    if (countErr) throw countErr
+    if (count && count > 0) throw new Error('Lieferant kann nicht gelöscht werden, da er noch Produkten zugeordnet ist.')
 
     const { error } = await supabase
-      .from('products')
-      .update({ supplier_name: newName.trim() })
-      .eq('store_id', DEMO_STORE_ID)
-      .eq('supplier_name', oldName)
+      .from('suppliers')
+      .delete()
+      .eq('id', id)
 
     if (error) throw error
     await fetchSuppliers()
@@ -106,7 +103,8 @@ export function useSuppliers() {
     loading,
     error,
     fetchSuppliers,
-    updateSupplierContact,
-    renameSupplier,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier,
   }
 }

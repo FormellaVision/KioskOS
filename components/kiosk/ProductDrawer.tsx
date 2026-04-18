@@ -5,6 +5,8 @@ import { X, Trash2, Scan, Loader2, CheckCircle, AlertCircle } from 'lucide-react
 import { toast } from 'sonner';
 import { Product, Category } from '@/lib/supabase/types';
 import { lookupEan } from '@/lib/ean-lookup';
+import { useSuppliers } from '@/hooks/use-suppliers';
+import BarcodeScanner from './BarcodeScanner';
 
 interface ProductDrawerProps {
   open: boolean;
@@ -22,6 +24,7 @@ interface FormState {
   salePrice: string;
   stockCount: string;
   category_id: string;
+  supplier_id: string;
   supplier_name: string;
   is_available: boolean;
   // Compliance & Regulierung
@@ -42,6 +45,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
     salePrice: '',
     stockCount: '',
     category_id: firstCategoryId,
+    supplier_id: '',
     supplier_name: '',
     is_available: true,
     age_restriction: 0,
@@ -53,6 +57,16 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
 
   const [form, setForm] = useState<FormState>(emptyForm);
   const [eanLookupState, setEanLookupState] = useState<'idle' | 'loading' | 'found' | 'notfound'>('idle');
+  const [showScanner, setShowScanner] = useState(false);
+  
+  const { suppliers, fetchSuppliers } = useSuppliers();
+  const [isAddingNewSupplier, setIsAddingNewSupplier] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      fetchSuppliers();
+    }
+  }, [open, fetchSuppliers]);
 
   useEffect(() => {
     if (open) {
@@ -64,6 +78,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
           salePrice: product.sale_price != null ? product.sale_price.toString() : '',
           stockCount: product.stock_count != null ? product.stock_count.toString() : '',
           category_id: product.category_id ?? firstCategoryId,
+          supplier_id: product.supplier_id ?? '',
           supplier_name: product.supplier_name ?? '',
           is_available: product.is_available,
           age_restriction: product.age_restriction ?? 0,
@@ -77,12 +92,12 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
       } else {
         setForm({ ...emptyForm, category_id: firstCategoryId });
       }
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('overflow-hidden');
     } else {
-      document.body.style.overflow = '';
+      document.body.classList.remove('overflow-hidden');
       setEanLookupState('idle');
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => { document.body.classList.remove('overflow-hidden'); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, product, firstCategoryId]);
 
@@ -116,8 +131,16 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
     }
   };
 
+  const handleScan = (code: string) => {
+    setForm(prev => ({ ...prev, gtin: code }));
+    setShowScanner(false);
+    // Auto-lookup nach Scan
+    setTimeout(() => handleEanLookup(), 100);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSave = () => {
@@ -131,6 +154,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
       sale_price: form.price_is_fixed ? null : (form.salePrice ? parseFloat(form.salePrice) : null),
       stock_count: form.stockCount !== '' ? parseInt(form.stockCount) : null,
       category_id: form.category_id || null,
+      supplier_id: form.supplier_id || null,
       supplier_name: form.supplier_name.trim() || null,
       supplier_contact: null,
       is_available: form.is_available,
@@ -167,14 +191,14 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             </h2>
             <button
               onClick={onClose}
-              className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:text-black transition-colors"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 hover:text-black transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="px-5 py-5 space-y-4 pb-8">
+        <div className="px-5 py-5 space-y-5 pb-24 md:pb-8">
           {/* Produktname */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
@@ -248,22 +272,19 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
               </p>
             )}
 
-            <label className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors w-fit">
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="flex items-center gap-1.5 text-xs text-red-500 font-bold hover:text-red-700 cursor-pointer transition-colors w-fit py-1 px-2 bg-red-50 rounded-lg border border-red-100"
+            >
               <Scan className="w-3.5 h-3.5" />
               <span>Barcode mit Kamera scannen</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={async (e) => {
-                  if (e.target.files?.[0]) {
-                    toast.info('Tipp: Tippe den EAN-Code manuell ein und drücke "Lookup" — Kamera-Scan kommt in der nächsten Version');
-                  }
-                  e.target.value = '';
-                }}
-              />
-            </label>
+            </button>
+            {typeof window !== 'undefined' && !('BarcodeDetector' in window) && (
+              <p className="text-[10px] text-gray-400 mt-1 italic">
+                * Barcode-Erkennung wird in diesem Browser evtl. nicht unterstützt (Safari/iOS). Empfohlen: Chrome/Android.
+              </p>
+            )}
           </div>
 
           {/* Preis + Sonderpreis */}
@@ -343,13 +364,27 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               Lieferant (optional)
             </label>
-            <input
-              name="supplier_name"
-              value={form.supplier_name}
-              onChange={handleChange}
-              placeholder="z. B. Metro Cash & Carry"
-              className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm focus:outline-none focus:border-red-500 transition-colors"
-            />
+            <div className="space-y-2">
+              <select
+                name="supplier_id"
+                value={form.supplier_id}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const selectedSup = suppliers.find(s => s.id === val);
+                  setForm(prev => ({ 
+                    ...prev, 
+                    supplier_id: val,
+                    supplier_name: selectedSup?.name ?? ''
+                  }));
+                }}
+                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:border-red-500 transition-colors appearance-none"
+              >
+                <option value="">Kein Lieferant</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* ─── Compliance & Regulierung ─── */}
@@ -516,6 +551,13 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
           )}
         </div>
       </div>
+
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </>
   );
 }

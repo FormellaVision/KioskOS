@@ -27,9 +27,9 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         <p className="text-gray-600 text-sm mt-1">{dateString}</p>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 border border-border shadow-sm">
+      <div className="bg-white rounded-2xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow group">
         <div className="flex items-center gap-2 mb-1">
-          <TrendingUp className="w-4 h-4 text-red-500" />
+          <TrendingUp className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" />
           <span className="text-gray-600 text-sm font-medium">Heutiger Umsatz</span>
         </div>
         {loading ? (
@@ -128,7 +128,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </>
           ) : stats.recentOrders.length === 0 ? (
-            <div className="text-gray-500 text-sm text-center py-8">Noch keine Bestellungen</div>
+            <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-10 flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                <Clock className="w-6 h-6 text-gray-300" />
+              </div>
+              <p className="text-gray-500 text-sm font-medium">Noch keine Bestellungen</p>
+              <p className="text-gray-400 text-xs mt-1">Bestellungen erscheinen hier, sobald sie eingehen.</p>
+            </div>
           ) : (
             stats.recentOrders.map((order) => (
               <RecentOrderCard key={order.id} order={order} />

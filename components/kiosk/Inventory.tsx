@@ -48,6 +48,12 @@ export default function Inventory() {
     setUnitCost('')
     setNote('')
     setDrawerOpen(true)
+    document.body.classList.add('overflow-hidden')
+  }
+
+  const closeDrawer = () => {
+    setDrawerOpen(false)
+    document.body.classList.remove('overflow-hidden')
   }
 
   const handleSave = async () => {
@@ -74,13 +80,17 @@ export default function Inventory() {
         })
         toast.success(`Buchung für ${selectedProduct.name} gespeichert`)
       }
-      setDrawerOpen(false)
+      closeDrawer()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Fehler beim Speichern')
     } finally {
       setSaving(false)
     }
   }
+
+  useEffect(() => {
+    return () => { document.body.classList.remove('overflow-hidden') }
+  }, [])
 
   // Produkte mit niedrigem Bestand (unter 5 Stück, aber Bestand wird geführt)
   const lowStockProducts = productStocks.filter(
@@ -293,7 +303,7 @@ export default function Inventory() {
       {drawerOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-          onClick={() => setDrawerOpen(false)}
+          onClick={closeDrawer}
         />
       )}
 
@@ -313,15 +323,15 @@ export default function Inventory() {
                '✏️ Bestandskorrektur'}
             </h2>
             <button
-              onClick={() => setDrawerOpen(false)}
-              className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 hover:text-black transition-colors"
+              onClick={closeDrawer}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-100 text-gray-500 hover:text-black transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="px-5 py-5 space-y-4 pb-8">
+        <div className="px-5 py-5 space-y-5 pb-24 md:pb-8">
           {/* Produktauswahl */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
@@ -430,7 +440,7 @@ export default function Inventory() {
                'Korrektur speichern'}
             </button>
             <button
-              onClick={() => setDrawerOpen(false)}
+              onClick={closeDrawer}
               className="w-full text-gray-500 hover:text-black text-sm py-2 transition-colors"
             >
               Abbrechen

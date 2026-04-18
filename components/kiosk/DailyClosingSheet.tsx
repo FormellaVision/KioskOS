@@ -76,6 +76,12 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
     const content = generateXBericht(s, 'Shisha World Hamburg')
     setXReportContent(content)
     setShowXReport(true)
+    document.body.classList.add('overflow-hidden')
+  }
+
+  const closeXReport = () => {
+    setShowXReport(false)
+    document.body.classList.remove('overflow-hidden')
   }
 
   const formatEur = (val: number) =>
@@ -85,26 +91,27 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="bg-zinc-900 border-zinc-800 text-white h-[90vh] overflow-y-auto rounded-t-2xl"
+        className="bg-white border-t border-border text-black h-[90vh] overflow-y-auto rounded-t-3xl pb-24 md:pb-8 shadow-2xl"
       >
-        <SheetHeader className="mb-6">
-          <SheetTitle className="text-white text-xl font-bold">Tagesabschluss</SheetTitle>
+        <SheetHeader className="mb-6 pt-2">
+          <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
+          <SheetTitle className="text-black text-2xl font-bold tracking-tight">Tagesabschluss</SheetTitle>
         </SheetHeader>
 
         {/* Tab Switch */}
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setView('closing')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              view === 'closing' ? 'bg-amber-400 text-black' : 'bg-zinc-800 text-zinc-400'
+            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+              view === 'closing' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
             Heute abschließen
           </button>
           <button
             onClick={() => setView('history')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              view === 'history' ? 'bg-amber-400 text-black' : 'bg-zinc-800 text-zinc-400'
+            className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${
+              view === 'history' ? 'bg-red-500 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
           >
             Verlauf
@@ -122,25 +129,25 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
             ) : summary ? (
               <>
                 {/* Tagesübersicht */}
-                <div className="bg-zinc-800 rounded-xl p-4 space-y-3">
-                  <p className="text-zinc-400 text-xs uppercase tracking-wider">Tagesübersicht</p>
+                <div className="bg-gray-50 border border-border rounded-2xl p-5 space-y-4">
+                  <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Tagesübersicht</p>
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-300">Gesamtumsatz</span>
-                    <span className="text-white font-bold text-lg">
+                    <span className="text-gray-600 font-medium">Gesamtumsatz</span>
+                    <span className="text-black font-bold text-xl font-mono">
                       {formatEur(summary.totalRevenue)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-400 text-sm">Online bezahlt</span>
-                    <span className="text-zinc-300 text-sm">{formatEur(summary.onlineRevenue)}</span>
+                    <span className="text-gray-500 text-sm">Online bezahlt</span>
+                    <span className="text-gray-700 text-sm font-mono">{formatEur(summary.onlineRevenue)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-zinc-400 text-sm">Bestellungen</span>
-                    <span className="text-zinc-300 text-sm">{summary.orderCount}</span>
+                    <span className="text-gray-500 text-sm">Bestellungen</span>
+                    <span className="text-gray-700 text-sm font-mono">{summary.orderCount}</span>
                   </div>
-                  <div className="border-t border-zinc-700 pt-3 flex justify-between items-center">
-                    <span className="text-zinc-300 font-medium">Erwartete Kasse</span>
-                    <span className="text-amber-400 font-bold text-lg">
+                  <div className="border-t border-gray-200 pt-4 flex justify-between items-center">
+                    <span className="text-black font-bold">Erwartete Kasse</span>
+                    <span className="text-red-500 font-bold text-2xl font-mono">
                       {formatEur(summary.expectedCash)}
                     </span>
                   </div>
@@ -149,17 +156,17 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                 {/* X-Bericht Button */}
                 <button
                   onClick={handleXReport}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-xl text-sm font-medium transition-colors border border-zinc-700"
+                  className="w-full h-14 flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-700 rounded-2xl text-sm font-bold transition-all border border-border shadow-sm active:scale-[0.98]"
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-5 h-5 text-gray-400" />
                   X-Bericht (Zwischenstand)
                 </button>
 
                 {/* Kassensturz */}
-                <div className="bg-zinc-800 rounded-xl p-4 space-y-3">
-                  <p className="text-zinc-400 text-xs uppercase tracking-wider">Kassensturz</p>
+                <div className="bg-gray-50 border border-border rounded-2xl p-5 space-y-4">
+                  <p className="text-gray-500 text-xs font-bold uppercase tracking-widest">Kassensturz</p>
                   <div>
-                    <label className="text-zinc-300 text-sm block mb-2">
+                    <label className="text-gray-600 text-sm font-medium block mb-2">
                       Tatsächlicher Kassenstand (€)
                     </label>
                     <Input
@@ -168,7 +175,7 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                       placeholder="0.00"
                       value={actualCash}
                       onChange={(e) => setActualCash(e.target.value)}
-                      className="bg-zinc-700 border-zinc-600 text-white text-lg h-12"
+                      className="bg-white border-border text-black text-xl font-bold h-14 rounded-xl focus:ring-red-500 focus:border-red-500 font-mono"
                     />
                   </div>
 
@@ -199,15 +206,15 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                 </div>
 
                 {/* Notizen */}
-                <div className="bg-zinc-800 rounded-xl p-4">
-                  <label className="text-zinc-400 text-xs uppercase tracking-wider block mb-2">
+                <div className="bg-gray-50 border border-border rounded-2xl p-5">
+                  <label className="text-gray-500 text-xs font-bold uppercase tracking-widest block mb-2">
                     Notiz (optional)
                   </label>
                   <Input
                     placeholder="z.B. Lieferung noch nicht verbucht..."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="bg-zinc-700 border-zinc-600 text-white"
+                    className="bg-white border-border text-black rounded-xl h-12"
                   />
                 </div>
 
@@ -216,12 +223,12 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                   <Button
                     onClick={handleSave}
                     disabled={saving || actualCash === ''}
-                    className="w-full h-14 bg-amber-400 hover:bg-amber-300 text-black font-bold text-base"
+                    className="w-full h-14 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-base rounded-2xl shadow-lg active:scale-[0.98] transition-all"
                   >
                     {saving ? 'Wird gespeichert...' : '✓ Tagesabschluss speichern'}
                   </Button>
                 ) : (
-                  <div className="w-full h-14 bg-green-900/30 text-green-400 rounded-lg flex items-center justify-center font-medium">
+                  <div className="w-full h-14 bg-green-50 border border-green-200 text-green-600 rounded-2xl flex items-center justify-center font-bold">
                     ✓ Abschluss gespeichert
                   </div>
                 )}
@@ -243,27 +250,27 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
               <div className="text-center py-12 text-zinc-500">Noch keine Abschlüsse vorhanden</div>
             ) : (
               history.map((closing) => (
-                <div key={closing.id} className="bg-zinc-800 rounded-xl p-4">
+                <div key={closing.id} className="bg-white border border-border rounded-2xl p-5 shadow-sm">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-zinc-300 font-medium">
+                    <span className="text-gray-700 font-bold">
                       {new Date(closing.closing_date).toLocaleDateString('de-DE', {
                         weekday: 'short',
                         day: '2-digit',
                         month: '2-digit',
                       })}
                     </span>
-                    <span className="text-white font-bold">{formatEur(closing.total_revenue)}</span>
+                    <span className="text-black font-bold font-mono">{formatEur(closing.total_revenue)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500">{closing.order_count} Bestellungen</span>
+                    <span className="text-gray-500">{closing.order_count} Bestellungen</span>
                     {closing.cash_difference !== null && (
                       <span
-                        className={`font-medium ${
+                        className={`font-bold font-mono ${
                           Math.abs(closing.cash_difference) < 0.01
-                            ? 'text-green-400'
+                            ? 'text-green-600'
                             : closing.cash_difference > 0
-                            ? 'text-blue-400'
-                            : 'text-red-400'
+                            ? 'text-blue-600'
+                            : 'text-red-500'
                         }`}
                       >
                         {closing.cash_difference > 0 ? '+' : ''}
@@ -272,7 +279,7 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                     )}
                   </div>
                   {closing.notes && (
-                    <p className="text-zinc-500 text-xs mt-2 truncate">{closing.notes}</p>
+                    <p className="text-gray-400 text-xs mt-3 bg-gray-50 p-2 rounded-lg italic">"{closing.notes}"</p>
                   )}
                   <button
                     onClick={() => {
@@ -286,10 +293,10 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
                       ].filter(Boolean).join('\n')
                       downloadReport(content, `Abschluss_${closing.closing_date}.txt`)
                     }}
-                    className="mt-2 flex items-center gap-1 text-zinc-600 hover:text-zinc-400 text-xs transition-colors"
+                    className="mt-4 flex items-center gap-1.5 text-gray-500 hover:text-black text-xs font-bold transition-colors"
                   >
-                    <Download className="w-3 h-3" />
-                    Herunterladen
+                    <Download className="w-4 h-4" />
+                    Bericht herunterladen
                   </button>
                 </div>
               ))
@@ -299,34 +306,27 @@ export function DailyClosingSheet({ open, onOpenChange }: DailyClosingSheetProps
 
         {/* X-Bericht Modal */}
         {showXReport && xReportContent && (
-          <div className="fixed inset-0 z-[60] bg-black/80 flex items-end justify-center p-4">
-            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-md max-h-[70vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-                <span className="text-white font-bold text-sm">X-Bericht</span>
+          <div className="fixed inset-0 z-[60] bg-black/60 flex items-end justify-center p-4 backdrop-blur-sm">
+            <div className="bg-white border border-border rounded-3xl w-full max-w-md max-h-[70vh] overflow-hidden flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gray-50">
+                <span className="text-black font-bold text-sm">X-Bericht Vorschau</span>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => printReport(xReportContent, 'X-Bericht')}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-lg text-xs transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all"
                   >
                     <Printer className="w-3.5 h-3.5" />
                     Drucken
                   </button>
                   <button
-                    onClick={() => downloadReport(xReportContent, `X-Bericht_${summary?.date?.replace(/-/g,'')}.txt`)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-lg text-xs transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Speichern
-                  </button>
-                  <button
-                    onClick={() => setShowXReport(false)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-700 text-zinc-400 hover:text-white transition-colors text-lg leading-none"
+                    onClick={closeXReport}
+                    className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-200 text-gray-500 hover:text-black transition-colors"
                   >
                     ×
                   </button>
                 </div>
               </div>
-              <pre className="flex-1 overflow-y-auto px-4 py-3 text-zinc-300 text-xs font-mono leading-relaxed whitespace-pre">
+              <pre className="flex-1 overflow-y-auto px-6 py-5 text-gray-700 text-xs font-mono leading-relaxed whitespace-pre bg-white">
                 {xReportContent}
               </pre>
             </div>

@@ -27,8 +27,8 @@ export default function BottomNav({ activePage, onNavigate }: BottomNavProps) {
             <button
               key={page}
               onClick={() => onNavigate(page)}
-              className={`relative flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[48px] transition-colors ${
-                isActive ? 'text-red-500' : 'text-gray-600 hover:text-black'
+              className={`relative flex-1 flex flex-col items-center justify-center gap-1 select-none transition-colors h-16 ${
+                isActive ? 'text-red-500' : 'text-gray-500 active:text-black'
               }`}
             >
               <Icon className={`w-5 h-5 ${isActive ? 'text-red-500' : ''}`} />

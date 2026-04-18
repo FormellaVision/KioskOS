@@ -78,5 +78,25 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  /* Disable hover effects on touch devices to prevent "sticky" hover states */
+  @media (hover: none) {
+    .hover\:bg-gray-100:hover { @apply bg-transparent; }
+    .hover\:text-black:hover { color: inherit; }
+  }
+
+  /* Utility for scroll locking */
+  .overflow-hidden {
+    overflow: hidden !important;
+  }
+
+  /* Prevent automatic zoom on iOS when clicking inputs */
+  @media screen and (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 }
