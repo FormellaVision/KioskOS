@@ -3,11 +3,12 @@
 import { useCallback, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { DEMO_STORE_ID } from '@/lib/constants'
-import { Supplier as DBSupplier } from '@/lib/supabase/types'
+import { Supplier as DBSupplier, Product as DBProduct } from '@/lib/supabase/types'
 
 export interface SupplierWithStats extends DBSupplier {
   productCount: number
   totalValue: number
+  products: DBProduct[]
 }
 
 export function useSuppliers() {
@@ -31,18 +32,19 @@ export function useSuppliers() {
       // 2. Fetch product stats for these suppliers
       const { data: products, error: prodErr } = await supabase
         .from('products')
-        .select('id, price, supplier_id')
+        .select('*')
         .eq('is_archived', false)
 
       if (prodErr) throw prodErr
 
       // 3. Aggregate stats
       const stats = (sups || []).map(s => {
-        const supProducts = (products || []).filter(p => p.supplier_id === s.id)
+        const supProducts = (products || []).filter((p: DBProduct) => p.supplier_id === s.id)
         return {
           ...s,
           productCount: supProducts.length,
-          totalValue: supProducts.reduce((sum, p) => sum + (p.price || 0), 0)
+          totalValue: supProducts.reduce((sum: number, p: DBProduct) => sum + (p.price || 0), 0),
+          products: supProducts
         }
       })
 
