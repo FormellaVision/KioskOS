@@ -8,7 +8,9 @@ import Dashboard from './Dashboard';
 import Products from './Products';
 import Orders from './Orders';
 import Customers from './Customers';
+import Suppliers from './Suppliers';
 import ShopSettings from './ShopSettings';
+import Inventory from './Inventory';
 import { useProducts } from '@/hooks/use-products';
 
 export type ProductViewMode = 'table' | 'grid';
@@ -16,7 +18,7 @@ export type ProductViewMode = 'table' | 'grid';
 export default function KioskApp() {
   const [activePage, setActivePage] = useState<NavPage>('dashboard');
   const [viewMode, setViewMode] = useState<ProductViewMode>('table');
-  const { categories, addCategory } = useProducts();
+  const { categories, addCategory, deleteCategory } = useProducts();
 
   const handleNavigate = (page: NavPage) => setActivePage(page);
 
@@ -37,14 +39,17 @@ export default function KioskApp() {
           )}
           {activePage === 'orders' && <Orders />}
           {activePage === 'customers' && <Customers />}
+          {activePage === 'suppliers' && <Suppliers />}
           {activePage === 'settings' && (
             <ShopSettings
               categories={categories}
               onAddCategory={addCategory}
+              onDeleteCategory={deleteCategory}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
             />
           )}
+          {activePage === 'inventory' && <Inventory />}
         </div>
       </main>
 

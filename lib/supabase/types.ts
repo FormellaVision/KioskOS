@@ -28,7 +28,7 @@ export type Product = {
   name: string
   description: string | null
   image_url: string | null
-  ean: string | null
+  gtin: string | null
   price: number
   sale_price: number | null
   supplier_name: string | null
@@ -36,6 +36,12 @@ export type Product = {
   is_available: boolean
   stock_count: number | null
   is_archived: boolean
+  // Compliance & Regulierung (Migration 002)
+  age_restriction: number        // 0 = keine, 16 = ab 16, 18 = ab 18
+  requires_face_to_face: boolean // DHL Ident-Check bei Versand
+  has_tobacco_tax: boolean       // Tabaksteuer-Pflicht
+  price_is_fixed: boolean        // Preisbindung (kein Sonderpreis möglich)
+  deposit_price: number          // Pfand in € (0 = kein Pfand)
   created_at: string
   updated_at: string
 }

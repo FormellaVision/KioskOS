@@ -18,6 +18,18 @@ export type DashboardStats = {
     created_at: string
     items_summary: string
   }[]
+  // Neu:
+  weekRevenue: number
+  weekOrderCount: number
+  topProducts: {
+    product_name: string
+    total_sold: number
+    total_revenue: number
+  }[]
+  revenueByCategory: {
+    category_name: string
+    revenue: number
+  }[]
 }
 
 export function useDashboardStats() {
@@ -28,6 +40,10 @@ export function useDashboardStats() {
     openAmount: 0,
     productCount: 0,
     recentOrders: [],
+    weekRevenue: 0,
+    weekOrderCount: 0,
+    topProducts: [],
+    revenueByCategory: [],
   })
   const [loading, setLoading] = useState(true)
 
@@ -89,6 +105,69 @@ export function useDashboardStats() {
           .join(', '),
       }))
 
+      // Wochenumsatz (letzte 7 Tage)
+      const weekStart = new Date()
+      weekStart.setDate(weekStart.getDate() - 7)
+      weekStart.setHours(0, 0, 0, 0)
+
+      const { data: weekOrders } = await supabase
+        .from('orders')
+        .select('total, status')
+        .eq('store_id', DEMO_STORE_ID)
+        .gte('created_at', weekStart.toISOString())
+
+      const validWeekOrders = (weekOrders ?? []).filter(
+        (o: any) => !['cancelled', 'refunded'].includes(o.status)
+      )
+      const weekRevenue = validWeekOrders.reduce((sum: number, o: any) => sum + (o.total ?? 0), 0)
+      const weekOrderCount = validWeekOrders.length
+
+      // Topprodukte (letzte 30 Tage, nach Menge)
+      const monthStart = new Date()
+      monthStart.setDate(monthStart.getDate() - 30)
+
+      const { data: itemsRaw } = await supabase
+        .from('order_items')
+        .select('product_name, quantity, line_total, orders!inner(store_id, created_at, status)')
+        .eq('orders.store_id', DEMO_STORE_ID)
+        .gte('orders.created_at', monthStart.toISOString())
+        .not('orders.status', 'in', '(cancelled,refunded)')
+
+      // Aggregieren nach product_name
+      const productMap: Record<string, { total_sold: number; total_revenue: number }> = {}
+      for (const item of (itemsRaw ?? []) as any[]) {
+        const name = item.product_name ?? 'Unbekannt'
+        if (!productMap[name]) productMap[name] = { total_sold: 0, total_revenue: 0 }
+        productMap[name].total_sold += item.quantity ?? 0
+        productMap[name].total_revenue += item.line_total ?? 0
+      }
+      const topProducts = Object.entries(productMap)
+        .map(([product_name, v]) => ({ product_name, ...v }))
+        .sort((a, b) => b.total_sold - a.total_sold)
+        .slice(0, 5)
+
+      // Umsatz nach Kategorie (letzte 30 Tage)
+      const { data: productsWithCat } = await supabase
+        .from('products')
+        .select('name, categories(name)')
+        .eq('store_id', DEMO_STORE_ID)
+        .eq('is_archived', false)
+
+      const productCatMap: Record<string, string> = {}
+      for (const p of (productsWithCat ?? []) as any[]) {
+        productCatMap[p.name] = p.categories?.name ?? 'Sonstiges'
+      }
+
+      const catRevenueMap: Record<string, number> = {}
+      for (const item of (itemsRaw ?? []) as any[]) {
+        const cat = productCatMap[item.product_name] ?? 'Sonstiges'
+        catRevenueMap[cat] = (catRevenueMap[cat] ?? 0) + (item.line_total ?? 0)
+      }
+      const revenueByCategory = Object.entries(catRevenueMap)
+        .map(([category_name, revenue]) => ({ category_name, revenue }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 6)
+
       setStats({
         todayRevenue,
         todayOrderCount,
@@ -96,6 +175,10 @@ export function useDashboardStats() {
         openAmount,
         productCount: productCount ?? 0,
         recentOrders,
+        weekRevenue,
+        weekOrderCount,
+        topProducts,
+        revenueByCategory,
       })
     } catch (err) {
       console.error('Dashboard stats error:', err)

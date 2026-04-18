@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, Scan, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Product, Category } from '@/lib/supabase/types';
+import { lookupEan } from '@/lib/ean-lookup';
 
 interface ProductDrawerProps {
   open: boolean;
@@ -15,13 +17,19 @@ interface ProductDrawerProps {
 
 interface FormState {
   name: string;
-  ean: string;
+  gtin: string;
   price: string;
   salePrice: string;
   stockCount: string;
   category_id: string;
   supplier_name: string;
   is_available: boolean;
+  // Compliance & Regulierung
+  age_restriction: number;
+  requires_face_to_face: boolean;
+  has_tobacco_tax: boolean;
+  price_is_fixed: boolean;
+  deposit_price: string;
 }
 
 export default function ProductDrawer({ open, product, categories, onClose, onSave, onDelete }: ProductDrawerProps) {
@@ -29,29 +37,42 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
 
   const emptyForm: FormState = {
     name: '',
-    ean: '',
+    gtin: '',
     price: '',
     salePrice: '',
     stockCount: '',
     category_id: firstCategoryId,
     supplier_name: '',
     is_available: true,
+    age_restriction: 0,
+    requires_face_to_face: false,
+    has_tobacco_tax: false,
+    price_is_fixed: false,
+    deposit_price: '',
   };
 
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [eanLookupState, setEanLookupState] = useState<'idle' | 'loading' | 'found' | 'notfound'>('idle');
 
   useEffect(() => {
     if (open) {
       if (product) {
         setForm({
           name: product.name,
-          ean: product.ean ?? '',
+          gtin: product.gtin ?? '',
           price: product.price.toString(),
           salePrice: product.sale_price != null ? product.sale_price.toString() : '',
           stockCount: product.stock_count != null ? product.stock_count.toString() : '',
           category_id: product.category_id ?? firstCategoryId,
           supplier_name: product.supplier_name ?? '',
           is_available: product.is_available,
+          age_restriction: product.age_restriction ?? 0,
+          requires_face_to_face: product.requires_face_to_face ?? false,
+          has_tobacco_tax: product.has_tobacco_tax ?? false,
+          price_is_fixed: product.price_is_fixed ?? false,
+          deposit_price: product.deposit_price != null && product.deposit_price > 0
+            ? product.deposit_price.toString()
+            : '',
         });
       } else {
         setForm({ ...emptyForm, category_id: firstCategoryId });
@@ -59,10 +80,41 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
+      setEanLookupState('idle');
     }
     return () => { document.body.style.overflow = ''; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, product, firstCategoryId]);
+
+  const handleEanLookup = async () => {
+    if (!form.gtin.trim()) return;
+    setEanLookupState('loading');
+    try {
+      const result = await lookupEan(form.gtin);
+      if (result.found) {
+        setEanLookupState('found');
+        setForm(prev => ({
+          ...prev,
+          name: result.name ?? prev.name,
+          supplier_name: prev.supplier_name || result.brand || prev.supplier_name,
+        }));
+        if (result.category) {
+          const matchedCat = categories.find(
+            c => c.name.toLowerCase() === result.category!.toLowerCase()
+          );
+          if (matchedCat) {
+            setForm(prev => ({ ...prev, category_id: matchedCat.id }));
+          }
+        }
+      } else {
+        setEanLookupState('notfound');
+      }
+      setTimeout(() => setEanLookupState('idle'), 3000);
+    } catch {
+      setEanLookupState('notfound');
+      setTimeout(() => setEanLookupState('idle'), 3000);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -73,9 +125,10 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
     onSave({
       name: form.name.trim(),
       description: null,
-      ean: form.ean.trim() || null,
+      gtin: form.gtin.trim() || null,
       price: parseFloat(form.price) || 0,
-      sale_price: form.salePrice ? parseFloat(form.salePrice) : null,
+      // Wenn Preisbindung aktiv → Sonderpreis immer null
+      sale_price: form.price_is_fixed ? null : (form.salePrice ? parseFloat(form.salePrice) : null),
       stock_count: form.stockCount !== '' ? parseInt(form.stockCount) : null,
       category_id: form.category_id || null,
       supplier_name: form.supplier_name.trim() || null,
@@ -83,6 +136,12 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
       is_available: form.is_available,
       is_archived: false,
       image_url: null,
+      // Compliance
+      age_restriction: form.age_restriction,
+      requires_face_to_face: form.requires_face_to_face,
+      has_tobacco_tax: form.has_tobacco_tax,
+      price_is_fixed: form.price_is_fixed,
+      deposit_price: form.deposit_price ? parseFloat(form.deposit_price) : 0,
     });
   };
 
@@ -116,6 +175,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
         </div>
 
         <div className="px-5 py-5 space-y-4 pb-8">
+          {/* Produktname */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               Produktname *
@@ -129,19 +189,84 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             />
           </div>
 
+          {/* EAN / GTIN */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               EAN / Barcode
             </label>
-            <input
-              name="ean"
-              value={form.ean}
-              onChange={handleChange}
-              placeholder="z. B. 9002490100070"
-              className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"
-            />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  name="gtin"
+                  value={form.gtin}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (eanLookupState !== 'idle') setEanLookupState('idle');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && form.gtin.trim()) {
+                      e.preventDefault();
+                      handleEanLookup();
+                    }
+                  }}
+                  placeholder="z. B. 9002490100070"
+                  className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors pr-8"
+                />
+                {eanLookupState === 'found' && (
+                  <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                )}
+                {eanLookupState === 'notfound' && (
+                  <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleEanLookup}
+                disabled={!form.gtin.trim() || eanLookupState === 'loading'}
+                className="flex items-center gap-1.5 px-3 py-2 bg-gray-900 hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl transition-colors min-h-[48px] whitespace-nowrap"
+              >
+                {eanLookupState === 'loading' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Scan className="w-4 h-4" />
+                )}
+                {eanLookupState === 'loading' ? 'Suche...' : 'Lookup'}
+              </button>
+            </div>
+
+            {eanLookupState === 'found' && (
+              <p className="text-green-600 text-xs flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                Produkt gefunden — Felder wurden befüllt
+              </p>
+            )}
+            {eanLookupState === 'notfound' && (
+              <p className="text-amber-600 text-xs flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Kein Produkt gefunden — Felder manuell ausfüllen
+              </p>
+            )}
+
+            <label className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors w-fit">
+              <Scan className="w-3.5 h-3.5" />
+              <span>Barcode mit Kamera scannen</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={async (e) => {
+                  if (e.target.files?.[0]) {
+                    toast.info('Tipp: Tippe den EAN-Code manuell ein und drücke "Lookup" — Kamera-Scan kommt in der nächsten Version');
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </label>
           </div>
 
+          {/* Preis + Sonderpreis */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
@@ -159,7 +284,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
+              <label className={`text-xs font-semibold uppercase tracking-wider ${form.price_is_fixed ? 'text-gray-300' : 'text-gray-500'}`}>
                 Sonderpreis (€)
               </label>
               <input
@@ -167,14 +292,20 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
                 type="number"
                 value={form.salePrice}
                 onChange={handleChange}
-                placeholder="leer = kein Angebot"
+                placeholder={form.price_is_fixed ? 'Preisbindung' : 'leer = kein Angebot'}
                 step="0.01"
                 min="0"
-                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"
+                disabled={form.price_is_fixed}
+                className={`w-full border rounded-xl px-4 py-3 text-sm font-mono focus:outline-none transition-colors ${
+                  form.price_is_fixed
+                    ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-white border-border text-black placeholder-gray-400 focus:border-red-500'
+                }`}
               />
             </div>
           </div>
 
+          {/* Stückzahl */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               Stückzahl
@@ -190,6 +321,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             />
           </div>
 
+          {/* Kategorie */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               Kategorie
@@ -206,6 +338,7 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             </select>
           </div>
 
+          {/* Lieferant */}
           <div className="space-y-1.5">
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               Lieferant (optional)
@@ -219,6 +352,121 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             />
           </div>
 
+          {/* ─── Compliance & Regulierung ─── */}
+          <div className="border-t border-border pt-4">
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider mb-3">
+              Compliance & Regulierung
+            </p>
+
+            {/* Altersfreigabe */}
+            <div className="space-y-1.5 mb-4">
+              <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
+                Altersfreigabe
+              </label>
+              <select
+                name="age_restriction"
+                value={form.age_restriction}
+                onChange={(e) => setForm(prev => ({ ...prev, age_restriction: parseInt(e.target.value) }))}
+                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black text-sm focus:outline-none focus:border-red-500 transition-colors appearance-none"
+              >
+                <option value={0}>Keine (alle Altersgruppen)</option>
+                <option value={16}>Ab 16 Jahren</option>
+                <option value={18}>Ab 18 Jahren (AVS erforderlich)</option>
+              </select>
+              {form.age_restriction === 18 && (
+                <p className="text-amber-600 text-xs mt-1">
+                  ⚠️ Bei Online-Verkauf: Altersverifikation nach §10 JuSchG erforderlich
+                </p>
+              )}
+            </div>
+
+            {/* Pfandpreis */}
+            <div className="space-y-1.5 mb-4">
+              <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
+                Pfand (€)
+              </label>
+              <input
+                name="deposit_price"
+                type="number"
+                value={form.deposit_price}
+                onChange={handleChange}
+                placeholder="0,00 = kein Pfand"
+                step="0.01"
+                min="0"
+                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"
+              />
+              <p className="text-gray-400 text-xs">z. B. 0,25 € (Dose) · 0,15 € (Flasche)</p>
+            </div>
+
+            {/* Tabaksteuer Toggle */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-border mb-3">
+              <div>
+                <p className="text-black text-sm font-medium">Tabaksteuer-Pflicht</p>
+                <p className="text-gray-500 text-xs">Produkt unterliegt der Tabaksteuer</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, has_tobacco_tax: !prev.has_tobacco_tax }))}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  form.has_tobacco_tax ? 'bg-orange-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  form.has_tobacco_tax ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            {/* Preisbindung Toggle */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-border mb-3">
+              <div>
+                <p className="text-black text-sm font-medium">Preisbindung</p>
+                <p className="text-gray-500 text-xs">Sonderpreis nicht erlaubt (z. B. Tabak)</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({
+                  ...prev,
+                  price_is_fixed: !prev.price_is_fixed,
+                  // Sonderpreis leeren wenn Preisbindung aktiviert
+                  salePrice: !prev.price_is_fixed ? '' : prev.salePrice,
+                }))}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  form.price_is_fixed ? 'bg-red-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  form.price_is_fixed ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+            {form.price_is_fixed && (
+              <p className="text-red-500 text-xs -mt-2 mb-3 px-1">
+                🔒 Sonderpreis deaktiviert — gesetzliche Preisbindung aktiv
+              </p>
+            )}
+
+            {/* Face-to-Face Toggle */}
+            <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-border">
+              <div>
+                <p className="text-black text-sm font-medium">Face-to-Face Versand</p>
+                <p className="text-gray-500 text-xs">DHL Ident-Check bei Lieferung</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, requires_face_to_face: !prev.requires_face_to_face }))}
+                className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
+                  form.requires_face_to_face ? 'bg-blue-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                  form.requires_face_to_face ? 'translate-x-6' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Verfügbar Toggle */}
           <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border border-border">
             <div>
               <p className="text-black text-sm font-medium">Verfügbar</p>

@@ -63,7 +63,7 @@ export function useProducts() {
       setProducts(prev =>
         prev.map(p => p.id === productId ? { ...p, is_available: currentValue } : p)
       )
-      console.error('Toggle fehlgeschlagen:', error)
+      throw new Error('Verfügbarkeit konnte nicht geändert werden')
     }
   }
 
@@ -110,6 +110,29 @@ export function useProducts() {
     return data
   }
 
+  const deleteCategory = async (categoryId: string) => {
+    // Prüfen ob Produkte in dieser Kategorie vorhanden
+    const { count } = await supabase
+      .from('products')
+      .select('id', { count: 'exact', head: true })
+      .eq('store_id', DEMO_STORE_ID)
+      .eq('category_id', categoryId)
+      .eq('is_archived', false)
+
+    if (count && count > 0) {
+      throw new Error(`Kategorie hat noch ${count} aktive Produkte. Bitte zuerst Produkte einer anderen Kategorie zuweisen.`)
+    }
+
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', categoryId)
+      .eq('store_id', DEMO_STORE_ID)
+
+    if (error) throw error
+    setCategories(prev => prev.filter(c => c.id !== categoryId))
+  }
+
   return {
     products,
     categories,
@@ -121,5 +144,6 @@ export function useProducts() {
     updateProduct,
     archiveProduct,
     addCategory,
+    deleteCategory,
   }
 }

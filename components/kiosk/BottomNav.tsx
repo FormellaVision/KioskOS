@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, Package, ShoppingBag, Users, Settings } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Users, Settings, Warehouse } from 'lucide-react';
 import { NavPage } from '@/lib/kiosk-types';
 
 interface BottomNavProps {
@@ -12,6 +12,7 @@ const navItems: { page: NavPage; label: string; icon: React.ComponentType<{ clas
   { page: 'dashboard', label: 'Übersicht', icon: LayoutDashboard },
   { page: 'products', label: 'Produkte', icon: Package },
   { page: 'orders', label: 'Bestellungen', icon: ShoppingBag },
+  { page: 'inventory', label: 'Bestand', icon: Warehouse },
   { page: 'customers', label: 'Kunden', icon: Users },
   { page: 'settings', label: 'Optionen', icon: Settings },
 ];
