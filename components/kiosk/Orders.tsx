@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Clock, Truck, ShoppingBag, XCircle, AlertCircle } from 'lucide-react';
+import { Check, Clock, Truck, ShoppingBag, XCircle, AlertCircle, RotateCcw } from 'lucide-react';
 import { Order } from '@/lib/supabase/types';
 import { useOrders, OrderWithItems } from '@/hooks/use-orders';
 import OrderStatusBadge from './OrderStatusBadge';
@@ -26,7 +26,7 @@ function timeAgo(dateString: string): string {
 }
 
 export default function Orders() {
-  const { orders, loading, error, advanceStatus, cancelOrder } = useOrders();
+  const { orders, loading, error, advanceStatus, revertStatus, cancelOrder } = useOrders();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
 
   const handleAdvance = async (orderId: string, currentStatus: Order['status']) => {
@@ -40,9 +40,14 @@ export default function Orders() {
   }
 
   const handleCancel = async (orderId: string) => {
-    if (!window.confirm('Bestellung wirklich stornieren? Diese Aktion kann nicht rückgängig gemacht werden.')) return
+    if (!window.confirm('Bestellung wirklich stornieren?')) return
     await cancelOrder(orderId)
     toast.success('Bestellung storniert')
+  }
+
+  const handleRevert = async (orderId: string, currentStatus: Order['status']) => {
+    await revertStatus(orderId, currentStatus)
+    toast.success('Status zurückgesetzt')
   }
 
   if (loading) {
@@ -124,6 +129,7 @@ export default function Orders() {
               key={order.id}
               order={order}
               onAdvance={() => handleAdvance(order.id, order.status)}
+              onRevert={() => handleRevert(order.id, order.status)}
               onCancel={() => handleCancel(order.id)}
             />
           ))}
@@ -136,10 +142,11 @@ export default function Orders() {
 interface OrderCardProps {
   order: OrderWithItems;
   onAdvance: () => void;
+  onRevert: () => void;
   onCancel: () => void;
 }
 
-function OrderCard({ order, onAdvance, onCancel }: OrderCardProps) {
+function OrderCard({ order, onAdvance, onRevert, onCancel }: OrderCardProps) {
   const itemsSummary = order.items.length > 0
     ? order.items.slice(0, 3).map(i => `${i.quantity}x ${i.product_name}`).join(', ')
     : 'Keine Details';
@@ -176,14 +183,25 @@ function OrderCard({ order, onAdvance, onCancel }: OrderCardProps) {
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
           <span className="text-black font-bold text-lg font-mono">€ {order.total.toFixed(2)}</span>
           <div className="flex items-center gap-2">
-            {order.status === 'new' && (
-              <button
-                onClick={onCancel}
-                className="flex items-center gap-1 px-3 py-2.5 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg text-sm transition-colors min-h-[44px]"
-                title="Stornieren"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
+            {order.status !== 'cancelled' && order.status !== 'refunded' && (
+              <>
+                <button
+                  onClick={onCancel}
+                  className="flex items-center gap-1 px-3 py-2.5 bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-500 rounded-lg text-sm transition-colors min-h-[44px]"
+                  title="Stornieren"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+                {order.status !== 'new' && (
+                  <button
+                    onClick={onRevert}
+                    className="flex items-center gap-1 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-black rounded-lg text-sm transition-colors min-h-[44px]"
+                    title="Zurücksetzen"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
+                )}
+              </>
             )}
             <ActionButton status={order.status} onAction={onAdvance} />
           </div>
