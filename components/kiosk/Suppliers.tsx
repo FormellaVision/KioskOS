@@ -278,7 +278,7 @@ function SupplierDetailsSheet({
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="z. B. Metro Cash & Carry"
-                className="w-full bg-accent/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-medium"
+                className="w-full bg-muted/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all font-medium"
               />
             </div>
           </div>
@@ -293,7 +293,7 @@ function SupplierDetailsSheet({
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   placeholder="info@beispiel.de"
-                  className="w-full bg-accent/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-red-500 transition-all"
+                  className="w-full bg-muted/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-black transition-all"
                 />
               </div>
             </div>
@@ -306,7 +306,7 @@ function SupplierDetailsSheet({
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   placeholder="+49 000 00000"
-                  className="w-full bg-accent/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-red-500 transition-all"
+                  className="w-full bg-muted/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-black transition-all"
                 />
               </div>
             </div>
@@ -321,7 +321,7 @@ function SupplierDetailsSheet({
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                 placeholder="Straße, PLZ Ort"
                 rows={2}
-                className="w-full bg-accent/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-red-500 transition-all resize-none"
+                className="w-full bg-muted/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-black transition-all resize-none"
               />
             </div>
           </div>
@@ -335,7 +335,7 @@ function SupplierDetailsSheet({
                 value={form.website}
                 onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
                 placeholder="https://www.beispiel.de"
-                className="w-full bg-accent/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-red-500 transition-all"
+                className="w-full bg-muted/30 border-border border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:border-black transition-all"
               />
               {form.website && (
                 <a href={form.website} target="_blank" rel="noreferrer" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -352,7 +352,7 @@ function SupplierDetailsSheet({
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               placeholder="z. B. Liefertage: Mo, Mi · Mindestbestellwert 150€"
               rows={3}
-              className="w-full bg-accent/30 border-border border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-red-500 transition-all resize-none"
+              className="w-full bg-muted/30 border-border border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-black transition-all resize-none"
             />
           </div>
 

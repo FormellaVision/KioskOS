@@ -91,9 +91,48 @@ export function useOrders() {
     }
   }
 
+  const revertStatus = async (orderId: string, currentStatus: Order['status']) => {
+    const prevStatus: Record<string, Order['status']> = {
+      confirmed: 'new',
+      ready: 'confirmed',
+      picked_up: 'ready',
+    }
+    const prev = prevStatus[currentStatus]
+    if (!prev) return
+
+    // Optimistic update
+    setOrders(p =>
+      p.map(o => (o.id === orderId ? { ...o, status: prev } : o))
+    )
+
+    const timestampToClear: Record<string, string> = {
+      confirmed: 'confirmed_at',
+      ready: 'ready_at',
+      picked_up: 'completed_at',
+    }
+
+    const updates: Record<string, unknown> = { status: prev }
+    if (timestampToClear[currentStatus]) {
+      updates[timestampToClear[currentStatus]] = null
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .update(updates)
+      .eq('id', orderId)
+
+    if (error) {
+      // Rollback
+      setOrders(p =>
+        p.map(o => (o.id === orderId ? { ...o, status: currentStatus } : o))
+      )
+      console.error('Revert fehlgeschlagen:', error)
+    }
+  }
+
   const cancelOrder = async (orderId: string) => {
     setOrders(prev =>
-      prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o)
+      prev.map(o => (o.id === orderId ? { ...o, status: 'cancelled' } : o))
     )
     const { error } = await supabase
       .from('orders')
@@ -112,6 +151,7 @@ export function useOrders() {
     error,
     refetch: fetchOrders,
     advanceStatus,
+    revertStatus,
     cancelOrder,
   }
 }

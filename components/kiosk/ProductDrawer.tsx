@@ -331,15 +331,37 @@ export default function ProductDrawer({ open, product, categories, onClose, onSa
             <label className="text-gray-500 text-xs font-semibold uppercase tracking-wider">
               Stückzahl
             </label>
-            <input
-              name="stockCount"
-              type="number"
-              value={form.stockCount}
-              onChange={handleChange}
-              placeholder="leer lassen = unbegrenzt ∞"
-              min="0"
-              className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"
-            />
+            <div className="space-y-3">
+              <input
+                name="stockCount"
+                type="number"
+                value={form.stockCount}
+                onChange={handleChange}
+                placeholder="leer lassen = unbegrenzt ∞"
+                min="0"
+                className="w-full bg-white border border-border rounded-xl px-4 py-3 text-black placeholder-gray-400 text-sm font-mono focus:outline-none focus:border-red-500 transition-colors"
+              />
+              <div className="flex flex-wrap gap-2">
+                {[+1, +10, +100, -1, -10, -100].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => {
+                      const current = parseInt(form.stockCount || '0')
+                      const next = Math.max(0, current + val)
+                      setForm(prev => ({ ...prev, stockCount: next.toString() }))
+                    }}
+                    className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-xs font-bold transition-colors border ${
+                      val > 0
+                        ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                        : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+                    }`}
+                  >
+                    {val > 0 ? `+${val}` : val}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Kategorie */}
